@@ -176,8 +176,8 @@ let PAPEL = '';
 
 // === PARA PUBLICAR: cole sua URL e a anon key entre as aspas abaixo. ===
 // A anon key pode ficar pública com segurança PORQUE o RLS está ligado.
-const SUPABASE_URL  = "https://uryzzerzmmuwuqxjwwec.supabase.co";   // ex.: "https://xxxx.supabase.co"
-const SUPABASE_ANON = "sb_publishable_6DGDsBzRZoT1LQwRr3UCUQ_EHmh-B3J";   // a anon public key (Settings → API)
+const SUPABASE_URL  = "https://uryzzerzmmuwuqxjwwec.supabase.co";
+const SUPABASE_ANON = "sb_publishable_6DGDsBzRZoT1LQwRr3UCUQ_EHmh-B3J";
 
 const BRL = v => (v==null?'—':Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}));
 const mes1 = m => m ? m + '-01' : null;            // 'YYYY-MM' -> 'YYYY-MM-01'
@@ -465,12 +465,14 @@ async function enviarNf(poId){
   const nf = document.getElementById('nf_'+poId).files[0];
   const ev = document.getElementById('ev_'+poId).files[0];
   if(!nf){ alert('Anexe a nota fiscal.'); return; }
-  const nfPath = poId+'/nf_'+Date.now()+'_'+nf.name.replace(/\s+/g,'_');
+  const seguro = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+                       .replace(/[^a-zA-Z0-9._-]/g,'_').replace(/_+/g,'_');
+  const nfPath = poId+'/nf_'+Date.now()+'_'+seguro(nf.name);
   const up1 = await sb.storage.from('evidencias').upload(nfPath, nf);
   if(up1.error){ alert('Falha no upload da NF: '+up1.error.message); return; }
   let evPath = null;
   if(ev){
-    evPath = poId+'/ev_'+Date.now()+'_'+ev.name.replace(/\s+/g,'_');
+    evPath = poId+'/ev_'+Date.now()+'_'+seguro(ev.name);
     const up2 = await sb.storage.from('evidencias').upload(evPath, ev);
     if(up2.error){ alert('Falha no upload da evidência: '+up2.error.message); return; }
   }
