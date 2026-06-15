@@ -132,6 +132,12 @@
       <h2>Marketing — criar projeto</h2>
       <div class="field"><label>Nome do projeto</label><input id="pNome" placeholder="Ex.: Gamescom Brasil 2026" /></div>
       <div class="field"><label>Agência responsável</label><select id="pAgencia"></select></div>
+      <div class="row">
+        <div class="field"><label>Categoria de produto</label><select id="pCat" onchange="previewClassificacao()"></select></div>
+        <div class="field"><label>Atividade</label><select id="pAtiv" onchange="previewClassificacao()"></select></div>
+      </div>
+      <div class="field"><label>Projeto (classificação)</label><select id="pProjTag" onchange="previewClassificacao()"></select></div>
+      <div class="sub" id="previewClass" style="margin:-4px 0 12px"></div>
       <label style="margin-bottom:4px">Distribuição do orçamento por mês</label>
       <div id="mesesBox"></div>
       <button class="ghost sm" onclick="addMesRow()" style="margin-top:4px">+ adicionar mês</button>
@@ -236,6 +242,27 @@ function opcoesAgencia(selecionada){
     + AGENCIAS.map(a=>`<option value="${a}" ${selecionada===a?'selected':''}>${a}</option>`).join('');
 }
 
+// Listas de classificação contábil (da aba Listas)
+const CATEGORIAS = ['TV','MON','AC','REF','WM','MOB','TV-LABG','Copa- LABG','SQD - LABG'];
+const ATIVIDADES = ['KOL','AON','Campaings','Fee'];
+const PROJ_TAGS  = ['10 years TCLSemp','Always On','BAB','F2F','FreshIN','Furia','Gamescom','Iest','Instaladores','Libertadores','Shutterstock','SP Arte','SQD Miniled','Squad','World Cup','Olimpiada','Monitor'];
+function opcoesSimples(arr){
+  return '<option value="">Selecione…</option>' + arr.map(a=>`<option value="${a}">${a}</option>`).join('');
+}
+function preencherListas(){
+  document.getElementById('pCat').innerHTML     = opcoesSimples(CATEGORIAS);
+  document.getElementById('pAtiv').innerHTML    = opcoesSimples(ATIVIDADES);
+  document.getElementById('pProjTag').innerHTML = opcoesSimples(PROJ_TAGS);
+}
+async function previewClassificacao(){
+  const d=document.getElementById('pCat').value, e=document.getElementById('pAtiv').value, f=document.getElementById('pProjTag').value;
+  const box=document.getElementById('previewClass');
+  if(!d||!e||!f){ box.innerHTML=''; return; }
+  const { data } = await sb.rpc('classificar', { p_d:d, p_e:e, p_f:f });
+  const r = data && data[0];
+  box.innerHTML = r ? `Resulta em → CC <b>${r.cc||'—'}</b> · Account <b>${r.account||'—'}</b> · <b>${r.descricao||'—'}</b>` : '';
+}
+
 async function conectar(){
   const url = document.getElementById('url').value.trim().replace(/\/+$/,'');
   const key = document.getElementById('key').value.trim().replace(/\s+/g,'');
@@ -324,7 +351,7 @@ async function abrirApp(session){
   document.getElementById('cardGerar').style.display   = (papel === 'administrativo') ? '' : 'none';
   document.getElementById('cardValidar').style.display = (papel === 'administrativo') ? '' : 'none';
   if(!valido){ return; }
-  if(papel === 'marketing'){ carregarPendentes(); carregarAgencias(); carregarPessoas(); document.getElementById('mesesBox').innerHTML=''; addMesRow(); }
+  if(papel === 'marketing'){ carregarPendentes(); carregarAgencias(); carregarPessoas(); preencherListas(); document.getElementById('mesesBox').innerHTML=''; addMesRow(); }
   if(papel === 'administrativo'){ carregarAprovadas(); carregarValidar(); }
   if(papel === 'agencia'){
     const { data: minhaAg } = await sb.rpc('agencia_atual');
@@ -427,7 +454,11 @@ function atualizarTotalProjeto(){
 async function criarProjeto(){
   const nome = document.getElementById('pNome').value.trim();
   const agencia = document.getElementById('pAgencia').value;
+  const cat = document.getElementById('pCat').value;
+  const ativ = document.getElementById('pAtiv').value;
+  const projTag = document.getElementById('pProjTag').value;
   if(!nome || !agencia){ show('mktMsg','err','Preencha o nome e escolha a agência.'); return; }
+  if(!cat || !ativ || !projTag){ show('mktMsg','err','Escolha categoria de produto, atividade e projeto.'); return; }
 
   const rows = [];
   document.querySelectorAll('#mesesBox > div').forEach(div=>{
@@ -439,8 +470,13 @@ async function criarProjeto(){
   });
   if(!rows.length){ show('mktMsg','err','Adicione pelo menos um mês com valor.'); return; }
 
-  const { data: proj, error: e1 } = await sb.from('projetos')
-    .insert({ nome, agencia, criado_por:'portal' }).select().single();
+  const { data: cls } = await sb.rpc('classificar', { p_d:cat, p_e:ativ, p_f:projTag });
+  const c = (cls && cls[0]) || {};
+
+  const { data: proj, error: e1 } = await sb.from('projetos').insert({
+    nome, agencia, product_category:cat, activity:ativ, projeto_tag:projTag,
+    cc:c.cc, account:c.account, account_desc:c.descricao, criado_por:'portal'
+  }).select().single();
   if(e1){ show('mktMsg','err', e1.message); return; }
 
   const tetosIns = rows.map(r=>({ projeto_id: proj.id, competencia: r.competencia, teto: r.teto, definido_por:'portal' }));
@@ -450,6 +486,7 @@ async function criarProjeto(){
   const total = rows.reduce((s,r)=>s+r.teto, 0);
   show('mktMsg','ok',`Projeto "${nome}" criado para ${agencia}: ${rows.length} mês(es), total ${BRL(total)}.`);
   document.getElementById('pNome').value='';
+  document.getElementById('previewClass').innerHTML='';
   document.getElementById('mesesBox').innerHTML=''; addMesRow();
   carregarProjetos();
 }
