@@ -350,20 +350,22 @@ async function abrirApp(session){
     'Conectado como ' + session.user.email + ' · ' + (papel || '(sem papel definido)');
   // mostra cada seção conforme o papel
   PAPEL = papel || '';
-  const valido = ['marketing','agencia','administrativo'].includes(papel);
+  const valido = ['marketing','agencia','administrativo','admin'].includes(papel);
+  const ehGestor  = (papel === 'marketing' || papel === 'admin');
+  const ehAdminOp = (papel === 'administrativo' || papel === 'admin');
   document.getElementById('cardPending').style.display = valido ? 'none' : '';
   document.getElementById('cardNotif').style.display = valido ? '' : 'none';
   document.getElementById('cardSaldo').style.display = valido ? '' : 'none';
-  document.getElementById('cardMkt').style.display = (papel === 'marketing') ? '' : 'none';
-  document.getElementById('cardPessoas').style.display = (papel === 'marketing') ? '' : 'none';
-  document.getElementById('cardAg').style.display  = (papel === 'agencia')   ? '' : 'none';
+  document.getElementById('cardMkt').style.display = ehGestor ? '' : 'none';
+  document.getElementById('cardPessoas').style.display = ehGestor ? '' : 'none';
+  document.getElementById('cardAprovar').style.display = ehGestor ? '' : 'none';
+  document.getElementById('cardGerar').style.display   = ehAdminOp ? '' : 'none';
+  document.getElementById('cardValidar').style.display = ehAdminOp ? '' : 'none';
+  document.getElementById('cardAg').style.display  = (papel === 'agencia') ? '' : 'none';
   document.getElementById('cardStatusAg').style.display = (papel === 'agencia') ? '' : 'none';
-  document.getElementById('cardAprovar').style.display = (papel === 'marketing') ? '' : 'none';
-  document.getElementById('cardGerar').style.display   = (papel === 'administrativo') ? '' : 'none';
-  document.getElementById('cardValidar').style.display = (papel === 'administrativo') ? '' : 'none';
   if(!valido){ return; }
-  if(papel === 'marketing'){ carregarPendentes(); carregarAgencias(); carregarPessoas(); preencherListas(); document.getElementById('mesesBox').innerHTML=''; addMesRow(); }
-  if(papel === 'administrativo'){ carregarAprovadas(); carregarValidar(); }
+  if(ehGestor){ carregarPendentes(); carregarAgencias(); carregarPessoas(); preencherListas(); document.getElementById('mesesBox').innerHTML=''; addMesRow(); }
+  if(ehAdminOp){ carregarAprovadas(); carregarValidar(); }
   if(papel === 'agencia'){
     const { data: minhaAg } = await sb.rpc('agencia_atual');
     MINHA_AGENCIA = minhaAg || '';
@@ -405,7 +407,7 @@ async function carregarPessoas(){
   const { data, error } = await sb.rpc('listar_pessoas');
   if(error){ box.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
   if(!data || !data.length){ box.innerHTML='<div class="empty">Ninguém cadastrado ainda.</div>'; return; }
-  const papeis = ['pendente','agencia','marketing','administrativo'];
+  const papeis = ['pendente','agencia','marketing','administrativo','admin'];
   box.innerHTML = '<table><thead><tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Agência</th><th>Ação</th></tr></thead><tbody>'
     + data.map(p=>{
         const nomeCompleto = [p.nome, p.sobrenome].filter(Boolean).join(' ') || '—';
