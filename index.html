@@ -84,10 +84,11 @@
 
   <!-- Login -->
   <div id="authCard" class="card hidden">
-    <h2>Entrar</h2>
-    <div class="field"><label>E-mail</label><input id="email" type="email" placeholder="voce@empresa.com" onkeydown="if(event.key==='Enter')entrar()" /></div>
-    <div class="field"><label>Senha</label><input id="senha" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')entrar()" /></div>
-    <button onclick="entrar()">Entrar</button>
+    <h2 id="authTitle">Entrar</h2>
+    <div class="field"><label>E-mail</label><input id="email" type="email" placeholder="voce@empresa.com" onkeydown="if(event.key==='Enter')authPrimary()" /></div>
+    <div class="field"><label>Senha</label><input id="senha" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')authPrimary()" /></div>
+    <button id="authBtn" onclick="authPrimary()">Entrar</button>
+    <div class="sub" style="margin-top:10px"><a href="#" id="authToggle" onclick="toggleAuth();return false">Não tem conta? Criar conta</a></div>
     <div id="authMsg" class="msg"></div>
   </div>
 
@@ -97,6 +98,12 @@
     <div class="card" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;gap:12px">
       <span class="sub" id="whoami"></span>
       <button class="ghost" onclick="sair()">Sair</button>
+    </div>
+
+    <!-- Acesso pendente -->
+    <div class="card" id="cardPending">
+      <h2>Acesso aguardando liberação</h2>
+      <div class="sub">Sua conta foi criada. Peça ao marketing para definir seu papel no sistema.</div>
     </div>
 
     <!-- Notificações -->
@@ -146,6 +153,12 @@
       <div id="listaPend"></div>
     </div>
 
+    <!-- Marketing: pessoas e papéis -->
+    <div class="card" id="cardPessoas">
+      <h2>Marketing — pessoas e papéis</h2>
+      <div id="listaPessoas"></div>
+    </div>
+
     <!-- Admin: gerar número da PO -->
     <div class="card" id="cardGerar">
       <h2>Administrativo — gerar número da PO</h2>
@@ -159,7 +172,7 @@
     </div>
 
     <!-- Saldo + lista -->
-    <div class="card">
+    <div class="card" id="cardSaldo">
       <h2>4 · Saldo e pedidos do mês</h2>
       <div class="field"><label>Projeto</label><select id="vProj" onchange="carregar()"></select></div>
       <div id="meterBox" class="hidden">
@@ -235,6 +248,30 @@ async function entrar(){
   await abrirApp(data.session);
 }
 
+let authMode = 'login';
+function toggleAuth(){
+  authMode = (authMode === 'login') ? 'signup' : 'login';
+  document.getElementById('authTitle').textContent  = authMode==='login' ? 'Entrar' : 'Criar conta';
+  document.getElementById('authBtn').textContent     = authMode==='login' ? 'Entrar' : 'Criar conta';
+  document.getElementById('authToggle').textContent  = authMode==='login' ? 'Não tem conta? Criar conta' : 'Já tem conta? Entrar';
+  document.getElementById('authMsg').className = 'msg';
+}
+function authPrimary(){ return authMode === 'login' ? entrar() : cadastrar(); }
+
+async function cadastrar(){
+  const email = document.getElementById('email').value.trim();
+  const senha = document.getElementById('senha').value;
+  if(!email || !senha){ show('authMsg','err','Preencha e-mail e senha.'); return; }
+  const { data, error } = await sb.auth.signUp({ email, password: senha });
+  if(error){ show('authMsg','err', error.message); return; }
+  if(data.session){
+    document.getElementById('authCard').classList.add('hidden');
+    await abrirApp(data.session);
+  } else {
+    show('authMsg','ok','Conta criada! Avise o marketing para liberar seu acesso.');
+  }
+}
+
 async function abrirApp(session){
   document.getElementById('app').classList.remove('hidden');
   // lê o papel pela função papel_atual() — não é bloqueada por RLS (security definer)
@@ -243,13 +280,19 @@ async function abrirApp(session){
     'Conectado como ' + session.user.email + ' · ' + (papel || '(sem papel definido)');
   // mostra cada seção conforme o papel
   PAPEL = papel || '';
+  const valido = ['marketing','agencia','administrativo'].includes(papel);
+  document.getElementById('cardPending').style.display = valido ? 'none' : '';
+  document.getElementById('cardNotif').style.display = valido ? '' : 'none';
+  document.getElementById('cardSaldo').style.display = valido ? '' : 'none';
   document.getElementById('cardMkt').style.display = (papel === 'marketing') ? '' : 'none';
+  document.getElementById('cardPessoas').style.display = (papel === 'marketing') ? '' : 'none';
   document.getElementById('cardAg').style.display  = (papel === 'agencia')   ? '' : 'none';
   document.getElementById('cardStatusAg').style.display = (papel === 'agencia') ? '' : 'none';
   document.getElementById('cardAprovar').style.display = (papel === 'marketing') ? '' : 'none';
   document.getElementById('cardGerar').style.display   = (papel === 'administrativo') ? '' : 'none';
   document.getElementById('cardValidar').style.display = (papel === 'administrativo') ? '' : 'none';
-  if(papel === 'marketing'){ carregarPendentes(); carregarAgencias(); document.getElementById('mesesBox').innerHTML=''; addMesRow(); }
+  if(!valido){ return; }
+  if(papel === 'marketing'){ carregarPendentes(); carregarAgencias(); carregarPessoas(); document.getElementById('mesesBox').innerHTML=''; addMesRow(); }
   if(papel === 'administrativo'){ carregarAprovadas(); carregarValidar(); }
   if(papel === 'agencia') carregarStatusAg();
   carregarNotificacoes();
@@ -270,6 +313,33 @@ async function carregarProjetos(){
   document.getElementById('sProj').innerHTML = opts || '<option value="">— nenhum projeto —</option>';
   document.getElementById('vProj').innerHTML = opts || '<option value="">— nenhum projeto —</option>';
   if(data && data.length) carregar();
+}
+
+// ----- Marketing: pessoas e papéis -----
+async function carregarPessoas(){
+  const box = document.getElementById('listaPessoas');
+  const { data, error } = await sb.rpc('listar_pessoas');
+  if(error){ box.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
+  if(!data || !data.length){ box.innerHTML='<div class="empty">Ninguém cadastrado ainda.</div>'; return; }
+  const papeis = ['pendente','agencia','marketing','administrativo'];
+  box.innerHTML = '<table><thead><tr><th>E-mail</th><th>Papel</th><th>Agência</th><th>Ação</th></tr></thead><tbody>'
+    + data.map(p=>{
+        const opts = papeis.map(r=>`<option value="${r}" ${p.papel===r?'selected':''}>${r}</option>`).join('');
+        return `<tr>
+          <td>${p.email||'—'}</td>
+          <td><select id="pa_${p.user_id}">${opts}</select></td>
+          <td><input id="ag_${p.user_id}" value="${p.agencia||''}" placeholder="(se agência)" style="max-width:140px"></td>
+          <td><button class="sm" onclick="salvarPapel('${p.user_id}')">Salvar</button></td>
+        </tr>`;
+      }).join('') + '</tbody></table>';
+}
+async function salvarPapel(userId){
+  const papel = document.getElementById('pa_'+userId).value;
+  const agencia = document.getElementById('ag_'+userId).value.trim();
+  const { error } = await sb.rpc('definir_papel', { p_user: userId, p_papel: papel, p_agencia: agencia || null });
+  if(error){ alert(error.message); return; }
+  carregarPessoas();
+  carregarAgencias();
 }
 
 // ----- Marketing: criar projeto com agência e distribuição mensal -----
