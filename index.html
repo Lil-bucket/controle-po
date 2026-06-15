@@ -55,6 +55,7 @@
   td.r,th.r{text-align:right}
   .tag{font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;font-family:var(--mono)}
   .t-pend{background:#fdf2dd;color:#9a6a07} .t-comp{background:#e4f3ea;color:#176b3a}
+  .t-rej{background:#fdecea;color:#a02617}
   .empty{color:var(--muted);font-size:13px;padding:8px 2px}
 </style>
 </head>
@@ -132,6 +133,12 @@
       <div id="agMsg" class="msg"></div>
     </div>
 
+    <!-- Agência: status das minhas POs -->
+    <div class="card" id="cardStatusAg">
+      <h2>Status das minhas POs</h2>
+      <div id="listaStatusAg"></div>
+    </div>
+
     <!-- Marketing: aprovar pedidos -->
     <div class="card" id="cardAprovar">
       <h2>Marketing — pedidos aguardando aprovação</h2>
@@ -165,6 +172,7 @@
 
 <script>
 let sb = null;
+let PAPEL = '';
 
 // === PARA PUBLICAR: cole sua URL e a anon key entre as aspas abaixo. ===
 // A anon key pode ficar pública com segurança PORQUE o RLS está ligado.
@@ -227,12 +235,15 @@ async function abrirApp(session){
   document.getElementById('whoami').textContent =
     'Conectado como ' + session.user.email + ' · ' + (papel || '(sem papel definido)');
   // mostra cada seção conforme o papel
+  PAPEL = papel || '';
   document.getElementById('cardMkt').style.display = (papel === 'marketing') ? '' : 'none';
   document.getElementById('cardAg').style.display  = (papel === 'agencia')   ? '' : 'none';
+  document.getElementById('cardStatusAg').style.display = (papel === 'agencia') ? '' : 'none';
   document.getElementById('cardAprovar').style.display = (papel === 'marketing') ? '' : 'none';
   document.getElementById('cardGerar').style.display   = (papel === 'administrativo') ? '' : 'none';
   if(papel === 'marketing') carregarPendentes();
   if(papel === 'administrativo') carregarAprovadas();
+  if(papel === 'agencia') carregarStatusAg();
   carregarNotificacoes();
   assinarNotificacoes();
   carregarProjetos();
@@ -303,6 +314,7 @@ async function solicitar(){
     show('agMsg','ok', `PO de ${BRL(val)} solicitada (status SOLICITADA). Valor reservado como pendente.`);
   }
   carregar();
+  if(PAPEL === 'agencia') carregarStatusAg();
 }
 
 // usa o mês do projeto selecionado na seção de saldo (ou o do projeto em foco)
@@ -410,6 +422,63 @@ async function gerar(id){
 }
 
 function refrescarSaldo(){ const id=document.getElementById('vProj').value; if(id) carregar(); }
+
+// ----- Agência: status das minhas POs + envio de NF -----
+const STATUS_LABEL = {SOLICITADA:'Solicitada',EM_APROVACAO:'Em aprovação',APROVADA:'Aprovada',
+  REJEITADA:'Rejeitada',PO_GERADA:'PO gerada',FATURADA:'Nota enviada',VALIDADA:'Validada',CONCLUIDA:'Concluída'};
+function tagClass(s){
+  if(['SOLICITADA','EM_APROVACAO','APROVADA'].includes(s)) return 't-pend';
+  if(s==='REJEITADA') return 't-rej';
+  return 't-comp';
+}
+
+async function carregarStatusAg(){
+  const box = document.getElementById('listaStatusAg');
+  const { data, error } = await sb.from('pos')
+    .select('id,valor,status,numero_po,projetos(nome)')
+    .order('solicitado_em',{ascending:false});   // RLS já filtra para a própria agência
+  if(error){ box.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
+  if(!data || !data.length){ box.innerHTML='<div class="empty">Você ainda não tem POs.</div>'; return; }
+  box.innerHTML = '<table><thead><tr><th>Projeto</th><th class="r">Valor</th><th>Nº PO</th><th>Status</th><th>Nota fiscal</th></tr></thead><tbody>'
+    + data.map(r=>{
+      let acao;
+      if(r.status==='PO_GERADA'){
+        acao = `<div style="display:flex;flex-direction:column;gap:5px">
+          <label class="sub" style="margin:0">Nota fiscal</label><input id="nf_${r.id}" type="file" />
+          <label class="sub" style="margin:0">Evidência (opcional)</label><input id="ev_${r.id}" type="file" />
+          <button class="sm" onclick="enviarNf('${r.id}')">Enviar</button></div>`;
+      } else if(['FATURADA','VALIDADA','CONCLUIDA'].includes(r.status)){
+        acao = 'Nota enviada';
+      } else if(r.status==='APROVADA'){
+        acao = 'Aguardando nº da PO';
+      } else { acao = '—'; }
+      return `<tr>
+        <td>${r.projetos?r.projetos.nome:'—'}</td>
+        <td class="r num">${BRL(r.valor)}</td>
+        <td class="num">${r.numero_po||'—'}</td>
+        <td><span class="tag ${tagClass(r.status)}">${STATUS_LABEL[r.status]||r.status}</span></td>
+        <td>${acao}</td></tr>`;
+    }).join('') + '</tbody></table>';
+}
+
+async function enviarNf(poId){
+  const nf = document.getElementById('nf_'+poId).files[0];
+  const ev = document.getElementById('ev_'+poId).files[0];
+  if(!nf){ alert('Anexe a nota fiscal.'); return; }
+  const nfPath = poId+'/nf_'+Date.now()+'_'+nf.name.replace(/\s+/g,'_');
+  const up1 = await sb.storage.from('evidencias').upload(nfPath, nf);
+  if(up1.error){ alert('Falha no upload da NF: '+up1.error.message); return; }
+  let evPath = null;
+  if(ev){
+    evPath = poId+'/ev_'+Date.now()+'_'+ev.name.replace(/\s+/g,'_');
+    const up2 = await sb.storage.from('evidencias').upload(evPath, ev);
+    if(up2.error){ alert('Falha no upload da evidência: '+up2.error.message); return; }
+  }
+  const { error } = await sb.rpc('faturar_po', { p_po: poId, p_fatura: nfPath, p_evidencia: evPath });
+  if(error){ alert(error.message); return; }
+  carregarStatusAg();
+  carregarNotificacoes();
+}
 
 // ----- Notificações -----
 async function carregarNotificacoes(){
