@@ -57,6 +57,11 @@
   .t-pend{background:#fdf2dd;color:#9a6a07} .t-comp{background:#e4f3ea;color:#176b3a}
   .t-rej{background:#fdecea;color:#a02617}
   .empty{color:var(--muted);font-size:13px;padding:8px 2px}
+  .pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;vertical-align:2px;margin-left:6px;text-transform:uppercase;letter-spacing:.04em}
+  .pill-login{background:#d9f2f7;color:#0a5560}
+  .pill-signup{background:#fdecd6;color:#9a6207}
+  .bar-mini{flex:1;height:9px;background:#eef0f3;border-radius:5px;overflow:hidden;min-width:54px}
+  .bar-mini > span{display:block;height:100%}
 </style>
 </head>
 <body>
@@ -84,7 +89,7 @@
 
   <!-- Login -->
   <div id="authCard" class="card hidden">
-    <h2 id="authTitle">Entrar na sua conta</h2>
+    <h2 id="authTitle"><span id="authTitleText">Entrar na sua conta</span> <span id="authPill" class="pill pill-login">login</span></h2>
     <div class="sub" id="authSub" style="margin:-4px 0 14px">Use seu e-mail e senha para acessar.</div>
     <div id="signupFields" style="display:none">
       <div class="row">
@@ -270,9 +275,13 @@ let authMode = 'login';
 function toggleAuth(){
   authMode = (authMode === 'login') ? 'signup' : 'login';
   const login = authMode === 'login';
-  document.getElementById('authTitle').textContent = login ? 'Entrar na sua conta' : 'Criar uma conta';
+  document.getElementById('authTitleText').textContent = login ? 'Entrar na sua conta' : 'Criar uma conta';
+  const pill = document.getElementById('authPill');
+  pill.textContent = login ? 'login' : 'novo cadastro';
+  pill.className = 'pill ' + (login ? 'pill-login' : 'pill-signup');
   document.getElementById('authSub').textContent   = login ? 'Use seu e-mail e senha para acessar.' : 'Cadastre-se; o marketing libera seu acesso depois.';
   document.getElementById('authBtn').textContent    = login ? 'Entrar' : 'Criar conta';
+  document.getElementById('authBtn').style.background = login ? '' : 'var(--amber)';
   document.getElementById('authToggle').textContent = login ? 'Não tem conta? Criar conta' : 'Já tem conta? Entrar';
   document.getElementById('signupFields').style.display = login ? 'none' : '';
   document.getElementById('authMsg').className = 'msg';
@@ -339,7 +348,7 @@ async function sair(){
 async function carregarProjetos(){
   const { data } = await sb.from('projetos').select('id,nome').order('nome');
   const opts = (data||[]).map(p=>`<option value="${p.id}">${p.nome}</option>`).join('');
-  document.getElementById('sProj').innerHTML = opts || '<option value="">— nenhum projeto —</option>';
+  document.getElementById('sProj').innerHTML = '<option value="">Selecione o projeto</option>' + opts;
   document.getElementById('vProj').innerHTML = '<option value="todos">Todos os projetos</option>' + opts;
   const vm = document.getElementById('vMes');
   if(vm && !vm.value){ const d=new Date(); vm.value = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
@@ -513,16 +522,24 @@ function desenharOverview(rows){
   if(!rows.length){ ov.innerHTML='<div class="empty">Nenhum projeto com teto neste mês.</div>'; return; }
   let tt=0,tc=0,tp=0,ts=0;
   const body = rows.map(r=>{
-    tt+=Number(r.teto); tc+=Number(r.comprometido); tp+=Number(r.pendente); ts+=Number(r.saldo);
+    const teto=Number(r.teto), saldo=Number(r.saldo);
+    tt+=teto; tc+=Number(r.comprometido); tp+=Number(r.pendente); ts+=saldo;
+    const pct = teto>0 ? Math.min(100, Math.round((teto - saldo)/teto*100)) : 0;
+    const cor = pct >= 90 ? 'var(--red)' : (pct >= 70 ? 'var(--amber)' : 'var(--green)');
+    const barra = `<div style="display:flex;align-items:center;gap:7px">
+        <div class="bar-mini"><span style="width:${pct}%;background:${cor}"></span></div>
+        <span class="num" style="font-size:11.5px;min-width:34px;text-align:right">${pct}%</span></div>`;
     return `<tr>
       <td>${r.projeto}</td>
-      <td class="r num">${BRL(r.teto)}</td>
+      <td class="r num">${BRL(teto)}</td>
       <td class="r num">${BRL(r.comprometido)}</td>
       <td class="r num">${BRL(r.pendente)}</td>
-      <td class="r num">${BRL(r.saldo)}</td></tr>`;
+      <td class="r num">${BRL(saldo)}</td>
+      <td style="min-width:120px">${barra}</td></tr>`;
   }).join('');
-  ov.innerHTML = `<table><thead><tr><th>Projeto</th><th class="r">Teto</th><th class="r">Comprometido</th><th class="r">Pendente</th><th class="r">Saldo</th></tr></thead><tbody>${body}
-    <tr style="font-weight:700"><td>Total</td><td class="r num">${BRL(tt)}</td><td class="r num">${BRL(tc)}</td><td class="r num">${BRL(tp)}</td><td class="r num">${BRL(ts)}</td></tr>
+  const pctTot = tt>0 ? Math.min(100, Math.round((tt - ts)/tt*100)) : 0;
+  ov.innerHTML = `<table><thead><tr><th>Projeto</th><th class="r">Teto</th><th class="r">Comprometido</th><th class="r">Pendente</th><th class="r">Saldo</th><th>Uso</th></tr></thead><tbody>${body}
+    <tr style="font-weight:700"><td>Total</td><td class="r num">${BRL(tt)}</td><td class="r num">${BRL(tc)}</td><td class="r num">${BRL(tp)}</td><td class="r num">${BRL(ts)}</td><td class="num" style="font-size:11.5px">${pctTot}% usado</td></tr>
     </tbody></table>`;
 }
 
