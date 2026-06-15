@@ -37,6 +37,7 @@
   button:hover{background:var(--teal-d)} button:disabled{opacity:.5;cursor:default}
   button.ghost{background:#fff;color:var(--teal);border:1px solid var(--line)}
   button.ghost:hover{background:#f3f7f8}
+  button.sm{padding:6px 11px;font-size:13px;margin-right:5px}
   .msg{margin-top:12px;padding:10px 13px;border-radius:8px;font-size:13.5px;display:none}
   .msg.ok{display:block;background:#e9f7ef;border:1px solid #b9e3cb;color:#176b3a}
   .msg.err{display:block;background:#fdecea;border:1px solid #f1c2bb;color:#a02617}
@@ -122,6 +123,18 @@
       <div id="agMsg" class="msg"></div>
     </div>
 
+    <!-- Marketing: aprovar pedidos -->
+    <div class="card" id="cardAprovar">
+      <h2>Marketing — pedidos aguardando aprovação</h2>
+      <div id="listaPend"></div>
+    </div>
+
+    <!-- Admin: gerar número da PO -->
+    <div class="card" id="cardGerar">
+      <h2>Administrativo — gerar número da PO</h2>
+      <div id="listaAprov"></div>
+    </div>
+
     <!-- Saldo + lista -->
     <div class="card">
       <h2>4 · Saldo e pedidos do mês</h2>
@@ -146,8 +159,8 @@ let sb = null;
 
 // === PARA PUBLICAR: cole sua URL e a anon key entre as aspas abaixo. ===
 // A anon key pode ficar pública com segurança PORQUE o RLS está ligado.
-const SUPABASE_URL  = "https://uryzzerzmmuwuqxjwwec.supabase.co";   // ex.: "https://xxxx.supabase.co"
-const SUPABASE_ANON = "sb_publishable_6DGDsBzRZoT1LQwRr3UCUQ_EHmh-B3J";   // a anon public key (Settings → API)
+const SUPABASE_URL  = "";   // ex.: "https://xxxx.supabase.co"
+const SUPABASE_ANON = "";   // a anon public key (Settings → API)
 
 const BRL = v => (v==null?'—':Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}));
 const mes1 = m => m ? m + '-01' : null;            // 'YYYY-MM' -> 'YYYY-MM-01'
@@ -207,6 +220,10 @@ async function abrirApp(session){
   // mostra cada seção conforme o papel
   document.getElementById('cardMkt').style.display = (papel === 'marketing') ? '' : 'none';
   document.getElementById('cardAg').style.display  = (papel === 'agencia')   ? '' : 'none';
+  document.getElementById('cardAprovar').style.display = (papel === 'marketing') ? '' : 'none';
+  document.getElementById('cardGerar').style.display   = (papel === 'administrativo') ? '' : 'none';
+  if(papel === 'marketing') carregarPendentes();
+  if(papel === 'administrativo') carregarAprovadas();
   carregarProjetos();
 }
 
@@ -318,13 +335,70 @@ function desenharLista(rows){
     return `<tr>
       <td>${r.agencia}</td>
       <td>${r.descricao||'—'}</td>
+      <td class="num">${r.numero_po||'—'}</td>
       <td class="r num">${BRL(r.valor)}</td>
       <td><span class="tag ${pend?'t-pend':'t-comp'}">${r.status}</span></td>
     </tr>`;
   }).join('');
   document.getElementById('lista').innerHTML =
-    `<table><thead><tr><th>Agência</th><th>Descrição</th><th class="r">Valor</th><th>Status</th></tr></thead><tbody>${body}</tbody></table>`;
+    `<table><thead><tr><th>Agência</th><th>Descrição</th><th>Nº PO</th><th class="r">Valor</th><th>Status</th></tr></thead><tbody>${body}</tbody></table>`;
 }
+
+// ----- Marketing: aprovar / rejeitar pedidos pendentes -----
+async function carregarPendentes(){
+  const box = document.getElementById('listaPend');
+  const { data, error } = await sb.from('pos')
+    .select('id,agencia,valor,descricao,projetos(nome)')
+    .in('status',['SOLICITADA','EM_APROVACAO']).order('solicitado_em');
+  if(error){ box.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
+  if(!data || !data.length){ box.innerHTML='<div class="empty">Nenhum pedido pendente.</div>'; return; }
+  box.innerHTML = '<table><thead><tr><th>Projeto</th><th>Agência</th><th>Descrição</th><th class="r">Valor</th><th>Ação</th></tr></thead><tbody>'
+    + data.map(r=>`<tr>
+        <td>${r.projetos?r.projetos.nome:'—'}</td>
+        <td>${r.agencia}</td>
+        <td>${r.descricao||'—'}</td>
+        <td class="r num">${BRL(r.valor)}</td>
+        <td><button class="sm" onclick="aprovar('${r.id}')">Aprovar</button><button class="ghost sm" onclick="rejeitar('${r.id}')">Rejeitar</button></td>
+      </tr>`).join('')
+    + '</tbody></table>';
+}
+async function aprovar(id){
+  const { error } = await sb.rpc('aprovar_po', { p_po: id });
+  if(error){ alert(error.message); }
+  await carregarPendentes(); refrescarSaldo();
+}
+async function rejeitar(id){
+  const { error } = await sb.rpc('rejeitar_po', { p_po: id });
+  if(error){ alert(error.message); }
+  await carregarPendentes(); refrescarSaldo();
+}
+
+// ----- Administrativo: gerar número da PO nas aprovadas -----
+async function carregarAprovadas(){
+  const box = document.getElementById('listaAprov');
+  const { data, error } = await sb.from('pos')
+    .select('id,agencia,valor,projetos(nome)')
+    .eq('status','APROVADA').order('atualizado_em');
+  if(error){ box.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
+  if(!data || !data.length){ box.innerHTML='<div class="empty">Nenhuma PO aprovada aguardando número.</div>'; return; }
+  box.innerHTML = '<table><thead><tr><th>Projeto</th><th>Agência</th><th class="r">Valor</th><th>Número + gerar</th></tr></thead><tbody>'
+    + data.map(r=>`<tr>
+        <td>${r.projetos?r.projetos.nome:'—'}</td>
+        <td>${r.agencia}</td>
+        <td class="r num">${BRL(r.valor)}</td>
+        <td style="display:flex;gap:6px;align-items:center"><input id="num_${r.id}" placeholder="nº da PO" style="max-width:130px" /><button class="sm" onclick="gerar('${r.id}')">Gerar</button></td>
+      </tr>`).join('')
+    + '</tbody></table>';
+}
+async function gerar(id){
+  const num = document.getElementById('num_'+id).value.trim();
+  if(!num){ alert('Informe o número da PO.'); return; }
+  const { error } = await sb.rpc('gerar_po', { p_po: id, p_numero: num });
+  if(error){ alert(error.message); }
+  await carregarAprovadas(); refrescarSaldo();
+}
+
+function refrescarSaldo(){ const id=document.getElementById('vProj').value; if(id) carregar(); }
 
 // Ao abrir a página: se URL/anon key já estiverem preenchidas no topo, conecta sozinho
 (async function init(){
