@@ -131,7 +131,7 @@
     <div class="card" id="cardMkt">
       <h2>Marketing — criar projeto</h2>
       <div class="field"><label>Nome do projeto</label><input id="pNome" placeholder="Ex.: Gamescom Brasil 2026" /></div>
-      <div class="field"><label>Agência responsável</label><select id="pAgencia"></select></div>
+      <div class="field"><label>Agência responsável</label><select id="pAgencia" onchange="atualizarAtividades()"></select></div>
       <div class="row">
         <div class="field"><label>Categoria de produto</label><select id="pCat" onchange="previewClassificacao()"></select></div>
         <div class="field"><label>Atividade</label><select id="pAtiv" onchange="previewClassificacao()"></select></div>
@@ -215,6 +215,8 @@
 <script>
 let sb = null;
 let PAPEL = '';
+let MINHA_AGENCIA = '';
+let MEUS_PROJ_IDS = [];
 
 // === PARA PUBLICAR: cole sua URL e a anon key entre as aspas abaixo. ===
 // A anon key pode ficar pública com segurança PORQUE o RLS está ligado.
@@ -261,6 +263,15 @@ async function previewClassificacao(){
   const { data } = await sb.rpc('classificar', { p_d:d, p_e:e, p_f:f });
   const r = data && data[0];
   box.innerHTML = r ? `Resulta em → CC <b>${r.cc||'—'}</b> · Account <b>${r.account||'—'}</b> · <b>${r.descricao||'—'}</b>` : '';
+}
+
+// Atividades permitidas por agência (F2F = todas)
+const ATIV_POR_AGENCIA = { IEST:['KOL','Fee'], Shutter:['Fee'], Furia:['KOL'] };
+function atualizarAtividades(){
+  const ag = document.getElementById('pAgencia').value;
+  const lista = ATIV_POR_AGENCIA[ag] || ATIVIDADES;
+  document.getElementById('pAtiv').innerHTML = opcoesSimples(lista);
+  previewClassificacao();
 }
 
 async function conectar(){
@@ -355,6 +366,7 @@ async function abrirApp(session){
   if(papel === 'administrativo'){ carregarAprovadas(); carregarValidar(); }
   if(papel === 'agencia'){
     const { data: minhaAg } = await sb.rpc('agencia_atual');
+    MINHA_AGENCIA = minhaAg || '';
     const elAg = document.getElementById('sAg');
     elAg.value = minhaAg || '';
     elAg.readOnly = true;
@@ -373,8 +385,13 @@ async function sair(){
 }
 
 async function carregarProjetos(){
-  const { data } = await sb.from('projetos').select('id,nome').order('nome');
-  const opts = (data||[]).map(p=>`<option value="${p.id}">${p.nome}</option>`).join('');
+  const { data } = await sb.from('projetos').select('id,nome,agencia').order('nome');
+  let lista = data || [];
+  if(PAPEL === 'agencia' && MINHA_AGENCIA){
+    lista = lista.filter(p => p.agencia === MINHA_AGENCIA);
+  }
+  MEUS_PROJ_IDS = lista.map(p => p.id);
+  const opts = lista.map(p=>`<option value="${p.id}">${p.nome}</option>`).join('');
   document.getElementById('sProj').innerHTML = '<option value="">Selecione o projeto</option>' + opts;
   document.getElementById('vProj').innerHTML = '<option value="todos">Todos os projetos</option>' + opts;
   const vm = document.getElementById('vMes');
@@ -542,7 +559,9 @@ async function carregar(){
   if(id === 'todos' || !id){
     meterBox.classList.add('hidden');
     lista.innerHTML = '';
-    desenharOverview(saldo || []);
+    let linhas = saldo || [];
+    if(PAPEL === 'agencia') linhas = linhas.filter(s => MEUS_PROJ_IDS.includes(s.projeto_id));
+    desenharOverview(linhas);
     return;
   }
   overview.innerHTML = '';
