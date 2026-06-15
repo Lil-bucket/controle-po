@@ -85,8 +85,8 @@
   <!-- Login -->
   <div id="authCard" class="card hidden">
     <h2>Entrar</h2>
-    <div class="field"><label>E-mail</label><input id="email" type="email" placeholder="voce@empresa.com" /></div>
-    <div class="field"><label>Senha</label><input id="senha" type="password" placeholder="••••••••" /></div>
+    <div class="field"><label>E-mail</label><input id="email" type="email" placeholder="voce@empresa.com" onkeydown="if(event.key==='Enter')entrar()" /></div>
+    <div class="field"><label>Senha</label><input id="senha" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')entrar()" /></div>
     <button onclick="entrar()">Entrar</button>
     <div id="authMsg" class="msg"></div>
   </div>
@@ -110,12 +110,13 @@
 
     <!-- Marketing: criar projeto -->
     <div class="card" id="cardMkt">
-      <h2>2 · Marketing — criar projeto e teto do mês</h2>
+      <h2>Marketing — criar projeto</h2>
       <div class="field"><label>Nome do projeto</label><input id="pNome" placeholder="Ex.: Gamescom Brasil 2026" /></div>
-      <div class="row">
-        <div class="field"><label>Mês de competência</label><input id="pMes" type="month" /></div>
-        <div class="field"><label>Teto</label><input id="pTeto" type="text" inputmode="numeric" placeholder="R$ 70.000,00" /></div>
-      </div>
+      <div class="field"><label>Agência responsável</label><select id="pAgencia"></select></div>
+      <label style="margin-bottom:4px">Distribuição do orçamento por mês</label>
+      <div id="mesesBox"></div>
+      <button class="ghost sm" onclick="addMesRow()" style="margin-top:4px">+ adicionar mês</button>
+      <div class="sub" style="margin:12px 0">Total do projeto: <b class="num" id="totalProjeto">R$ 0,00</b></div>
       <button onclick="criarProjeto()">Criar projeto</button>
       <div id="mktMsg" class="msg"></div>
     </div>
@@ -197,7 +198,7 @@ function maskBRL(el){
   });
 }
 const parseBRL = el => { const d = el.value.replace(/\D/g,''); return d ? Number(d)/100 : 0; };
-['pTeto','sVal'].forEach(id => maskBRL(document.getElementById(id)));
+['pTeto','sVal'].forEach(id => { const el=document.getElementById(id); if(el) maskBRL(el); });
 
 async function conectar(){
   const url = document.getElementById('url').value.trim().replace(/\/+$/,'');
@@ -248,7 +249,7 @@ async function abrirApp(session){
   document.getElementById('cardAprovar').style.display = (papel === 'marketing') ? '' : 'none';
   document.getElementById('cardGerar').style.display   = (papel === 'administrativo') ? '' : 'none';
   document.getElementById('cardValidar').style.display = (papel === 'administrativo') ? '' : 'none';
-  if(papel === 'marketing') carregarPendentes();
+  if(papel === 'marketing'){ carregarPendentes(); carregarAgencias(); document.getElementById('mesesBox').innerHTML=''; addMesRow(); }
   if(papel === 'administrativo'){ carregarAprovadas(); carregarValidar(); }
   if(papel === 'agencia') carregarStatusAg();
   carregarNotificacoes();
@@ -271,22 +272,70 @@ async function carregarProjetos(){
   if(data && data.length) carregar();
 }
 
+// ----- Marketing: criar projeto com agência e distribuição mensal -----
+let mesSeq = 0;
+async function carregarAgencias(){
+  const sel = document.getElementById('pAgencia');
+  const { data, error } = await sb.rpc('listar_agencias');
+  if(error){ sel.innerHTML='<option value="">(erro ao listar)</option>'; return; }
+  const ags = data || [];
+  sel.innerHTML = ags.length
+    ? ags.map(a=>`<option value="${a}">${a}</option>`).join('')
+    : '<option value="">— nenhuma agência cadastrada —</option>';
+}
+function addMesRow(){
+  mesSeq++;
+  const id = mesSeq;
+  const div = document.createElement('div');
+  div.id = 'mesrow_'+id;
+  div.style.cssText = 'display:flex;gap:8px;align-items:flex-end;margin-bottom:8px';
+  div.innerHTML = `
+    <div style="flex:1"><label>Mês</label><input type="month" id="mes_${id}"></div>
+    <div style="flex:1"><label>Valor</label><input type="text" inputmode="numeric" id="val_${id}" placeholder="R$ 0,00"></div>
+    <button class="ghost sm" onclick="removerMesRow(${id})" title="remover">×</button>`;
+  document.getElementById('mesesBox').appendChild(div);
+  const vEl = document.getElementById('val_'+id);
+  maskBRL(vEl);
+  vEl.addEventListener('input', atualizarTotalProjeto);
+  atualizarTotalProjeto();
+}
+function removerMesRow(id){
+  const el = document.getElementById('mesrow_'+id);
+  if(el) el.remove();
+  atualizarTotalProjeto();
+}
+function atualizarTotalProjeto(){
+  let total = 0;
+  document.querySelectorAll('#mesesBox input[id^="val_"]').forEach(el=>{ total += parseBRL(el); });
+  document.getElementById('totalProjeto').textContent = BRL(total);
+}
 async function criarProjeto(){
   const nome = document.getElementById('pNome').value.trim();
-  const comp = mes1(document.getElementById('pMes').value);
-  const teto = parseBRL(document.getElementById('pTeto'));
-  if(!nome || !comp || !teto){ show('mktMsg','err','Preencha nome, mês e teto.'); return; }
+  const agencia = document.getElementById('pAgencia').value;
+  if(!nome || !agencia){ show('mktMsg','err','Preencha o nome e escolha a agência.'); return; }
+
+  const rows = [];
+  document.querySelectorAll('#mesesBox > div').forEach(div=>{
+    const mesEl = div.querySelector('input[type="month"]');
+    const valEl = div.querySelector('input[id^="val_"]');
+    const mes = mesEl ? mesEl.value : '';
+    const val = valEl ? parseBRL(valEl) : 0;
+    if(mes && val) rows.push({ competencia: mes+'-01', teto: val });
+  });
+  if(!rows.length){ show('mktMsg','err','Adicione pelo menos um mês com valor.'); return; }
 
   const { data: proj, error: e1 } = await sb.from('projetos')
-    .insert({ nome, criado_por:'portal' }).select().single();
-  if(e1){ show('mktMsg','err',e1.message); return; }
+    .insert({ nome, agencia, criado_por:'portal' }).select().single();
+  if(e1){ show('mktMsg','err', e1.message); return; }
 
-  const { error: e2 } = await sb.from('tetos')
-    .insert({ projeto_id: proj.id, competencia: comp, teto, definido_por:'portal' });
-  if(e2){ show('mktMsg','err','Projeto criado, mas falhou o teto: '+e2.message); return; }
+  const tetosIns = rows.map(r=>({ projeto_id: proj.id, competencia: r.competencia, teto: r.teto, definido_por:'portal' }));
+  const { error: e2 } = await sb.from('tetos').insert(tetosIns);
+  if(e2){ show('mktMsg','err','Projeto criado, mas falhou a distribuição: '+e2.message); return; }
 
-  show('mktMsg','ok',`Projeto "${nome}" criado com teto de ${BRL(teto)} para ${comp.slice(0,7)}.`);
+  const total = rows.reduce((s,r)=>s+r.teto, 0);
+  show('mktMsg','ok',`Projeto "${nome}" criado para ${agencia}: ${rows.length} mês(es), total ${BRL(total)}.`);
   document.getElementById('pNome').value='';
+  document.getElementById('mesesBox').innerHTML=''; addMesRow();
   carregarProjetos();
 }
 
