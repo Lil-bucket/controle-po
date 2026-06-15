@@ -69,7 +69,7 @@
   <header>
     <h1>Controle de PO</h1>
     <div class="sub">Pedidos de ordem de pagamento com teto mensal por projeto</div>
-    <div class="banner">Acesso por perfil ativo: agência vê só as próprias POs, só marketing cria projeto, só administrativo gera PO.</div>
+    <div class="banner">Acesso por perfil: agência vê só as próprias POs; marketing cria projetos e aprova; admin gera PO, valida notas e gerencia usuários.</div>
   </header>
 
   <!-- Conexão -->
@@ -179,13 +179,13 @@
 
     <!-- Admin: gerar número da PO -->
     <div class="card" id="cardGerar">
-      <h2>Administrativo — gerar número da PO</h2>
+      <h2>Gerar número da PO</h2>
       <div id="listaAprov"></div>
     </div>
 
     <!-- Admin: validar notas -->
     <div class="card" id="cardValidar">
-      <h2>Administrativo — notas a validar</h2>
+      <h2>Notas a validar</h2>
       <div id="listaValidar"></div>
     </div>
 
@@ -350,22 +350,22 @@ async function abrirApp(session){
     'Conectado como ' + session.user.email + ' · ' + (papel || '(sem papel definido)');
   // mostra cada seção conforme o papel
   PAPEL = papel || '';
-  const valido = ['marketing','agencia','administrativo','admin'].includes(papel);
-  const ehGestor  = (papel === 'marketing' || papel === 'admin');
-  const ehAdminOp = (papel === 'administrativo' || papel === 'admin');
+  const valido = ['marketing','agencia','admin'].includes(papel);
+  const ehAdmin = (papel === 'admin');
+  const ehProjeto = (papel === 'marketing' || papel === 'admin'); // cria projeto e aprova PO
   document.getElementById('cardPending').style.display = valido ? 'none' : '';
   document.getElementById('cardNotif').style.display = valido ? '' : 'none';
   document.getElementById('cardSaldo').style.display = valido ? '' : 'none';
-  document.getElementById('cardMkt').style.display = ehGestor ? '' : 'none';
-  document.getElementById('cardPessoas').style.display = ehGestor ? '' : 'none';
-  document.getElementById('cardAprovar').style.display = ehGestor ? '' : 'none';
-  document.getElementById('cardGerar').style.display   = ehAdminOp ? '' : 'none';
-  document.getElementById('cardValidar').style.display = ehAdminOp ? '' : 'none';
+  document.getElementById('cardMkt').style.display = ehProjeto ? '' : 'none';
+  document.getElementById('cardPessoas').style.display = ehAdmin ? '' : 'none';
+  document.getElementById('cardAprovar').style.display = ehProjeto ? '' : 'none';
+  document.getElementById('cardGerar').style.display   = ehAdmin ? '' : 'none';
+  document.getElementById('cardValidar').style.display = ehAdmin ? '' : 'none';
   document.getElementById('cardAg').style.display  = (papel === 'agencia') ? '' : 'none';
   document.getElementById('cardStatusAg').style.display = (papel === 'agencia') ? '' : 'none';
   if(!valido){ return; }
-  if(ehGestor){ carregarPendentes(); carregarAgencias(); carregarPessoas(); preencherListas(); document.getElementById('mesesBox').innerHTML=''; addMesRow(); }
-  if(ehAdminOp){ carregarAprovadas(); carregarValidar(); }
+  if(ehProjeto){ carregarPendentes(); carregarAgencias(); preencherListas(); document.getElementById('mesesBox').innerHTML=''; addMesRow(); }
+  if(ehAdmin){ carregarPessoas(); carregarAprovadas(); carregarValidar(); }
   if(papel === 'agencia'){
     const { data: minhaAg } = await sb.rpc('agencia_atual');
     MINHA_AGENCIA = minhaAg || '';
@@ -407,7 +407,7 @@ async function carregarPessoas(){
   const { data, error } = await sb.rpc('listar_pessoas');
   if(error){ box.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
   if(!data || !data.length){ box.innerHTML='<div class="empty">Ninguém cadastrado ainda.</div>'; return; }
-  const papeis = ['pendente','agencia','marketing','administrativo','admin'];
+  const papeis = ['pendente','agencia','marketing','admin'];
   box.innerHTML = '<table><thead><tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Agência</th><th>Ação</th></tr></thead><tbody>'
     + data.map(p=>{
         const nomeCompleto = [p.nome, p.sobrenome].filter(Boolean).join(' ') || '—';
