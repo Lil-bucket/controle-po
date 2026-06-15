@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Controle de PO</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#eef0f3; --card:#ffffff; --ink:#16181d; --muted:#697080;
+    --line:#e0e3e9; --teal:#0d6e7a; --teal-d:#0a5560;
+    --red:#c0392b; --amber:#cf8a16; --green:#1f8a4c;
+    --mono:ui-monospace,"JetBrains Mono","SFMono-Regular",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+    font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:880px;margin:0 auto;padding:28px 18px 80px}
+  header{margin-bottom:22px}
+  h1{font-size:22px;letter-spacing:-.02em;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13.5px}
+  .banner{background:#fff7e6;border:1px solid #f0dca8;color:#8a6300;
+    padding:10px 13px;border-radius:9px;font-size:13px;margin:14px 0 0}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:13px;
+    padding:18px 18px 20px;margin-top:16px}
+  .card h2{font-size:13px;text-transform:uppercase;letter-spacing:.07em;
+    color:var(--muted);margin:0 0 14px;font-weight:600}
+  label{display:block;font-size:12.5px;color:var(--muted);margin:0 0 5px}
+  input,select{width:100%;padding:9px 11px;border:1px solid var(--line);
+    border-radius:8px;font-size:14px;font-family:var(--sans);background:#fff;color:var(--ink)}
+  input:focus,select:focus{outline:2px solid var(--teal);outline-offset:0;border-color:var(--teal)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .field{margin-bottom:12px}
+  button{appearance:none;border:0;background:var(--teal);color:#fff;font-weight:600;
+    font-size:14px;padding:10px 16px;border-radius:8px;cursor:pointer;font-family:var(--sans)}
+  button:hover{background:var(--teal-d)} button:disabled{opacity:.5;cursor:default}
+  button.ghost{background:#fff;color:var(--teal);border:1px solid var(--line)}
+  button.ghost:hover{background:#f3f7f8}
+  .msg{margin-top:12px;padding:10px 13px;border-radius:8px;font-size:13.5px;display:none}
+  .msg.ok{display:block;background:#e9f7ef;border:1px solid #b9e3cb;color:#176b3a}
+  .msg.err{display:block;background:#fdecea;border:1px solid #f1c2bb;color:#a02617}
+  .hidden{display:none}
+  .meter{height:26px;border-radius:7px;overflow:hidden;display:flex;
+    border:1px solid var(--line);background:#f3f4f6;margin:6px 0 10px}
+  .meter span{display:block;height:100%}
+  .seg-c{background:var(--green)} .seg-p{background:var(--amber)}
+  .legend{display:flex;gap:16px;font-size:12.5px;color:var(--muted);flex-wrap:wrap}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:1px}
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13.5px}
+  th,td{text-align:left;padding:8px 9px;border-bottom:1px solid var(--line)}
+  th{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
+  td.r,th.r{text-align:right}
+  .tag{font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;font-family:var(--mono)}
+  .t-pend{background:#fdf2dd;color:#9a6a07} .t-comp{background:#e4f3ea;color:#176b3a}
+  .empty{color:var(--muted);font-size:13px;padding:8px 2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Controle de PO</h1>
+    <div class="sub">Pedidos de ordem de pagamento com teto mensal por projeto</div>
+    <div class="banner">Acesso por perfil ativo: agência vê só as próprias POs, só marketing cria projeto, só administrativo gera PO.</div>
+  </header>
+
+  <!-- Conexão -->
+  <div class="card" id="connCard">
+    <h2>1 · Conectar ao seu Supabase</h2>
+    <div class="field">
+      <label>Project URL (Settings → API → Project URL)</label>
+      <input id="url" placeholder="https://xxxx.supabase.co" />
+    </div>
+    <div class="field">
+      <label>anon public key (Settings → API → Project API keys → anon public)</label>
+      <input id="key" placeholder="eyJhbGciOi..." />
+    </div>
+    <button onclick="conectar()">Conectar</button>
+    <div id="connMsg" class="msg"></div>
+  </div>
+
+  <!-- Login -->
+  <div id="authCard" class="card hidden">
+    <h2>Entrar</h2>
+    <div class="field"><label>E-mail</label><input id="email" type="email" placeholder="voce@empresa.com" /></div>
+    <div class="field"><label>Senha</label><input id="senha" type="password" placeholder="••••••••" /></div>
+    <button onclick="entrar()">Entrar</button>
+    <div id="authMsg" class="msg"></div>
+  </div>
+
+  <!-- App -->
+  <div id="app" class="hidden">
+
+    <div class="card" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;gap:12px">
+      <span class="sub" id="whoami"></span>
+      <button class="ghost" onclick="sair()">Sair</button>
+    </div>
+
+    <!-- Marketing: criar projeto -->
+    <div class="card" id="cardMkt">
+      <h2>2 · Marketing — criar projeto e teto do mês</h2>
+      <div class="field"><label>Nome do projeto</label><input id="pNome" placeholder="Ex.: Gamescom Brasil 2026" /></div>
+      <div class="row">
+        <div class="field"><label>Mês de competência</label><input id="pMes" type="month" /></div>
+        <div class="field"><label>Teto</label><input id="pTeto" type="text" inputmode="numeric" placeholder="R$ 70.000,00" /></div>
+      </div>
+      <button onclick="criarProjeto()">Criar projeto</button>
+      <div id="mktMsg" class="msg"></div>
+    </div>
+
+    <!-- Agência: solicitar PO -->
+    <div class="card" id="cardAg">
+      <h2>3 · Agência — solicitar PO</h2>
+      <div class="field"><label>Projeto</label><select id="sProj"></select></div>
+      <div class="row">
+        <div class="field"><label>Agência</label><input id="sAg" placeholder="Agência X" /></div>
+        <div class="field"><label>Valor</label><input id="sVal" type="text" inputmode="numeric" placeholder="R$ 4.000,00" /></div>
+      </div>
+      <div class="field"><label>Descrição</label><input id="sDesc" placeholder="Mídia paga — semana 1" /></div>
+      <button onclick="solicitar()">Solicitar PO</button>
+      <div id="agMsg" class="msg"></div>
+    </div>
+
+    <!-- Saldo + lista -->
+    <div class="card">
+      <h2>4 · Saldo e pedidos do mês</h2>
+      <div class="field"><label>Projeto</label><select id="vProj" onchange="carregar()"></select></div>
+      <div id="meterBox" class="hidden">
+        <div class="meter"><span class="seg-c" id="segC"></span><span class="seg-p" id="segP"></span></div>
+        <div class="legend">
+          <span><span class="dot" style="background:var(--green)"></span>Comprometido <b class="num" id="lgC"></b></span>
+          <span><span class="dot" style="background:var(--amber)"></span>Pendente <b class="num" id="lgP"></b></span>
+          <span><span class="dot" style="background:#cfd4dc"></span>Saldo <b class="num" id="lgS"></b></span>
+          <span>Teto <b class="num" id="lgT"></b></span>
+        </div>
+      </div>
+      <div id="lista"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let sb = null;
+
+// === PARA PUBLICAR: cole sua URL e a anon key entre as aspas abaixo. ===
+// A anon key pode ficar pública com segurança PORQUE o RLS está ligado.
+const SUPABASE_URL  = "";   // ex.: "https://xxxx.supabase.co"
+const SUPABASE_ANON = "";   // a anon public key (Settings → API)
+
+const BRL = v => (v==null?'—':Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}));
+const mes1 = m => m ? m + '-01' : null;            // 'YYYY-MM' -> 'YYYY-MM-01'
+const show = (id,type,txt)=>{const e=document.getElementById(id);e.className='msg '+type;e.textContent=txt;};
+
+// Máscara de moeda: digita-se em centavos e o campo mostra R$ formatado
+function maskBRL(el){
+  el.addEventListener('input',()=>{
+    const d = el.value.replace(/\D/g,'');
+    el.value = d ? (Number(d)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}) : '';
+  });
+}
+const parseBRL = el => { const d = el.value.replace(/\D/g,''); return d ? Number(d)/100 : 0; };
+['pTeto','sVal'].forEach(id => maskBRL(document.getElementById(id)));
+
+async function conectar(){
+  const url = document.getElementById('url').value.trim().replace(/\/+$/,'');
+  const key = document.getElementById('key').value.trim().replace(/\s+/g,'');
+  if(!url || !key){ show('connMsg','err','Preencha a URL e a anon key.'); return; }
+  if(!/^https:\/\/.+\.supabase\.co$/.test(url)){
+    show('connMsg','err','A URL deve ser a Project URL (ex.: https://xxxx.supabase.co), sem nada depois do .co. Pegue em Settings → API → Project URL.');
+    return;
+  }
+  try{
+    sb = supabase.createClient(url, key);
+    document.getElementById('connCard').classList.add('hidden');
+    await rotear();
+  }catch(e){ show('connMsg','err','Não consegui conectar: '+e.message); }
+}
+
+// Mostra login ou app conforme houver sessão ativa
+async function rotear(){
+  const { data:{ session } } = await sb.auth.getSession();
+  if(session){ await abrirApp(session); }
+  else {
+    document.getElementById('authCard').classList.remove('hidden');
+    document.getElementById('app').classList.add('hidden');
+  }
+}
+
+async function entrar(){
+  const email = document.getElementById('email').value.trim();
+  const senha = document.getElementById('senha').value;
+  if(!email || !senha){ show('authMsg','err','Preencha e-mail e senha.'); return; }
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: senha });
+  if(error){ show('authMsg','err', error.message); return; }
+  document.getElementById('authCard').classList.add('hidden');
+  await abrirApp(data.session);
+}
+
+async function abrirApp(session){
+  document.getElementById('app').classList.remove('hidden');
+  // lê o papel pela função papel_atual() — não é bloqueada por RLS (security definer)
+  const { data: papel } = await sb.rpc('papel_atual');
+  document.getElementById('whoami').textContent =
+    'Conectado como ' + session.user.email + ' · ' + (papel || '(sem papel definido)');
+  // mostra cada seção conforme o papel
+  document.getElementById('cardMkt').style.display = (papel === 'marketing') ? '' : 'none';
+  document.getElementById('cardAg').style.display  = (papel === 'agencia')   ? '' : 'none';
+  carregarProjetos();
+}
+
+async function sair(){
+  await sb.auth.signOut();
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('authCard').classList.remove('hidden');
+}
+
+async function carregarProjetos(){
+  const { data, error } = await sb.from('projetos').select('id,nome').order('nome');
+  if(error){ show('agMsg','err',error.message); return; }
+  const opts = (data||[]).map(p=>`<option value="${p.id}">${p.nome}</option>`).join('');
+  document.getElementById('sProj').innerHTML = opts || '<option value="">— nenhum projeto —</option>';
+  document.getElementById('vProj').innerHTML = opts || '<option value="">— nenhum projeto —</option>';
+  if(data && data.length) carregar();
+}
+
+async function criarProjeto(){
+  const nome = document.getElementById('pNome').value.trim();
+  const comp = mes1(document.getElementById('pMes').value);
+  const teto = parseBRL(document.getElementById('pTeto'));
+  if(!nome || !comp || !teto){ show('mktMsg','err','Preencha nome, mês e teto.'); return; }
+
+  const { data: proj, error: e1 } = await sb.from('projetos')
+    .insert({ nome, criado_por:'portal' }).select().single();
+  if(e1){ show('mktMsg','err',e1.message); return; }
+
+  const { error: e2 } = await sb.from('tetos')
+    .insert({ projeto_id: proj.id, competencia: comp, teto, definido_por:'portal' });
+  if(e2){ show('mktMsg','err','Projeto criado, mas falhou o teto: '+e2.message); return; }
+
+  show('mktMsg','ok',`Projeto "${nome}" criado com teto de ${BRL(teto)} para ${comp.slice(0,7)}.`);
+  document.getElementById('pNome').value='';
+  carregarProjetos();
+}
+
+async function solicitar(){
+  const projeto = document.getElementById('sProj').value;
+  const ag = document.getElementById('sAg').value.trim();
+  const val = parseBRL(document.getElementById('sVal'));
+  const desc = document.getElementById('sDesc').value.trim();
+  if(!projeto || !ag || !val){ show('agMsg','err','Escolha o projeto e preencha agência e valor.'); return; }
+
+  // competência do projeto selecionado
+  const { data: tetos } = await sb.from('tetos').select('competencia')
+    .eq('projeto_id', projeto).order('competencia',{ascending:false}).limit(1);
+  if(!tetos || !tetos.length){ show('agMsg','err','Esse projeto não tem teto cadastrado.'); return; }
+  const comp = tetos[0].competencia;
+
+  const { data, error } = await sb.rpc('solicitar_po', {
+    p_projeto: projeto, p_competencia: comp, p_agencia: ag, p_valor: val, p_descricao: desc
+  });
+
+  if(error){
+    // reconstrói a mensagem de estouro já em R$, com o saldo real do projeto
+    const { data: saldo } = await sb.rpc('saldo_mensal', { p_competencia: comp });
+    const s = (saldo||[]).find(x => x.projeto_id === projeto);
+    if(s && val > Number(s.saldo)){
+      show('agMsg','err',
+        `Pedido de ${BRL(val)} estoura o teto. Saldo disponível: ${BRL(s.saldo)} de ${BRL(s.teto)}. Reduza o valor ou ajuste o teto.`);
+    } else {
+      show('agMsg','err', error.message);
+    }
+  } else {
+    show('agMsg','ok', `PO de ${BRL(val)} solicitada (status SOLICITADA). Valor reservado como pendente.`);
+  }
+  carregar();
+}
+
+// usa o mês do projeto selecionado na seção de saldo (ou o do projeto em foco)
+let compAtual = null;
+function projetoCompetencia(){ return compAtual; }
+
+async function carregar(){
+  const id = document.getElementById('vProj').value;
+  if(!id){ return; }
+  // descobre a competência do teto desse projeto
+  const { data: tetos } = await sb.from('tetos').select('competencia,teto')
+    .eq('projeto_id', id).order('competencia',{ascending:false}).limit(1);
+  if(!tetos || !tetos.length){ document.getElementById('lista').innerHTML='<div class="empty">Sem teto cadastrado.</div>'; return; }
+  compAtual = tetos[0].competencia;
+
+  const { data: saldo } = await sb.rpc('saldo_mensal', { p_competencia: compAtual });
+  const linha = (saldo||[]).find(s=>s.projeto_id===id);
+  if(linha) desenharMeter(linha);
+
+  const { data: lista } = await sb.from('pos').select('*')
+    .eq('projeto_id', id).eq('competencia', compAtual).order('solicitado_em',{ascending:false});
+  desenharLista(lista||[]);
+}
+
+function desenharMeter(s){
+  const box=document.getElementById('meterBox'); box.classList.remove('hidden');
+  const teto=Number(s.teto), c=Number(s.comprometido), p=Number(s.pendente);
+  document.getElementById('segC').style.width=(teto? c/teto*100:0)+'%';
+  document.getElementById('segP').style.width=(teto? p/teto*100:0)+'%';
+  document.getElementById('lgC').textContent=BRL(c);
+  document.getElementById('lgP').textContent=BRL(p);
+  document.getElementById('lgS').textContent=BRL(s.saldo);
+  document.getElementById('lgT').textContent=BRL(teto);
+}
+
+function desenharLista(rows){
+  const PEND=['SOLICITADA','EM_APROVACAO','APROVADA'];
+  if(!rows.length){ document.getElementById('lista').innerHTML='<div class="empty">Nenhum pedido neste mês ainda.</div>'; return; }
+  const body = rows.map(r=>{
+    const pend = PEND.includes(r.status);
+    return `<tr>
+      <td>${r.agencia}</td>
+      <td>${r.descricao||'—'}</td>
+      <td class="r num">${BRL(r.valor)}</td>
+      <td><span class="tag ${pend?'t-pend':'t-comp'}">${r.status}</span></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('lista').innerHTML =
+    `<table><thead><tr><th>Agência</th><th>Descrição</th><th class="r">Valor</th><th>Status</th></tr></thead><tbody>${body}</tbody></table>`;
+}
+
+// Ao abrir a página: se URL/anon key já estiverem preenchidas no topo, conecta sozinho
+(async function init(){
+  if(SUPABASE_URL && SUPABASE_ANON){
+    document.getElementById('connCard').classList.add('hidden');
+    sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+    await rotear();
+  }
+})();
+</script>
+</body>
+</html>
