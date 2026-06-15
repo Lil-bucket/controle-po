@@ -151,6 +151,12 @@
       <div id="listaAprov"></div>
     </div>
 
+    <!-- Admin: validar notas -->
+    <div class="card" id="cardValidar">
+      <h2>Administrativo — notas a validar</h2>
+      <div id="listaValidar"></div>
+    </div>
+
     <!-- Saldo + lista -->
     <div class="card">
       <h2>4 · Saldo e pedidos do mês</h2>
@@ -241,8 +247,9 @@ async function abrirApp(session){
   document.getElementById('cardStatusAg').style.display = (papel === 'agencia') ? '' : 'none';
   document.getElementById('cardAprovar').style.display = (papel === 'marketing') ? '' : 'none';
   document.getElementById('cardGerar').style.display   = (papel === 'administrativo') ? '' : 'none';
+  document.getElementById('cardValidar').style.display = (papel === 'administrativo') ? '' : 'none';
   if(papel === 'marketing') carregarPendentes();
-  if(papel === 'administrativo') carregarAprovadas();
+  if(papel === 'administrativo'){ carregarAprovadas(); carregarValidar(); }
   if(papel === 'agencia') carregarStatusAg();
   carregarNotificacoes();
   assinarNotificacoes();
@@ -480,6 +487,39 @@ async function enviarNf(poId){
   if(error){ alert(error.message); return; }
   carregarStatusAg();
   carregarNotificacoes();
+}
+
+// ----- Administrativo: validar notas (abrir arquivos + concluir) -----
+async function carregarValidar(){
+  const box = document.getElementById('listaValidar');
+  const { data, error } = await sb.from('pos')
+    .select('id,agencia,valor,numero_po,fatura_url,evidencia_url,projetos(nome)')
+    .eq('status','FATURADA').order('atualizado_em');
+  if(error){ box.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
+  if(!data || !data.length){ box.innerHTML='<div class="empty">Nenhuma nota aguardando validação.</div>'; return; }
+  box.innerHTML = '<table><thead><tr><th>Projeto</th><th>Agência</th><th>Nº PO</th><th class="r">Valor</th><th>Arquivos</th><th>Ação</th></tr></thead><tbody>'
+    + data.map(r=>{
+        const nfBtn = r.fatura_url ? `<button class="ghost sm" onclick="abrirArquivo('${r.fatura_url}')">Nota</button>` : '';
+        const evBtn = r.evidencia_url ? `<button class="ghost sm" onclick="abrirArquivo('${r.evidencia_url}')">Evidência</button>` : '';
+        return `<tr>
+          <td>${r.projetos?r.projetos.nome:'—'}</td>
+          <td>${r.agencia}</td>
+          <td class="num">${r.numero_po||'—'}</td>
+          <td class="r num">${BRL(r.valor)}</td>
+          <td>${nfBtn}${evBtn}</td>
+          <td><button class="sm" onclick="validar('${r.id}')">Validar e concluir</button></td>
+        </tr>`;
+      }).join('') + '</tbody></table>';
+}
+async function abrirArquivo(path){
+  const { data, error } = await sb.storage.from('evidencias').createSignedUrl(path, 3600);
+  if(error){ alert('Não consegui abrir o arquivo: '+error.message); return; }
+  window.open(data.signedUrl, '_blank');
+}
+async function validar(id){
+  const { error } = await sb.rpc('validar_po', { p_po: id });
+  if(error){ alert(error.message); return; }
+  carregarValidar(); refrescarSaldo(); carregarNotificacoes();
 }
 
 // ----- Notificações -----
