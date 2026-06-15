@@ -84,7 +84,14 @@
 
   <!-- Login -->
   <div id="authCard" class="card hidden">
-    <h2 id="authTitle">Entrar</h2>
+    <h2 id="authTitle">Entrar na sua conta</h2>
+    <div class="sub" id="authSub" style="margin:-4px 0 14px">Use seu e-mail e senha para acessar.</div>
+    <div id="signupFields" style="display:none">
+      <div class="row">
+        <div class="field"><label>Nome</label><input id="snome" placeholder="Nome" /></div>
+        <div class="field"><label>Sobrenome</label><input id="ssobrenome" placeholder="Sobrenome" /></div>
+      </div>
+    </div>
     <div class="field"><label>E-mail</label><input id="email" type="email" placeholder="voce@empresa.com" onkeydown="if(event.key==='Enter')authPrimary()" /></div>
     <div class="field"><label>Senha</label><input id="senha" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')authPrimary()" /></div>
     <button id="authBtn" onclick="authPrimary()">Entrar</button>
@@ -173,8 +180,11 @@
 
     <!-- Saldo + lista -->
     <div class="card" id="cardSaldo">
-      <h2>4 · Saldo e pedidos do mês</h2>
-      <div class="field"><label>Projeto</label><select id="vProj" onchange="carregar()"></select></div>
+      <h2>Saldo e visão geral</h2>
+      <div class="row">
+        <div class="field"><label>Projeto</label><select id="vProj" onchange="carregar()"></select></div>
+        <div class="field"><label>Mês</label><input id="vMes" type="month" onchange="carregar()"></div>
+      </div>
       <div id="meterBox" class="hidden">
         <div class="meter"><span class="seg-c" id="segC"></span><span class="seg-p" id="segP"></span></div>
         <div class="legend">
@@ -184,6 +194,7 @@
           <span>Teto <b class="num" id="lgT"></b></span>
         </div>
       </div>
+      <div id="overview"></div>
       <div id="lista"></div>
     </div>
 
@@ -212,6 +223,13 @@ function maskBRL(el){
 }
 const parseBRL = el => { const d = el.value.replace(/\D/g,''); return d ? Number(d)/100 : 0; };
 ['pTeto','sVal'].forEach(id => { const el=document.getElementById(id); if(el) maskBRL(el); });
+
+// Agências da empresa (lista fixa)
+const AGENCIAS = ['F2F','IEST','Shutter','Furia'];
+function opcoesAgencia(selecionada){
+  return '<option value="">Selecione…</option>'
+    + AGENCIAS.map(a=>`<option value="${a}" ${selecionada===a?'selected':''}>${a}</option>`).join('');
+}
 
 async function conectar(){
   const url = document.getElementById('url').value.trim().replace(/\/+$/,'');
@@ -251,18 +269,23 @@ async function entrar(){
 let authMode = 'login';
 function toggleAuth(){
   authMode = (authMode === 'login') ? 'signup' : 'login';
-  document.getElementById('authTitle').textContent  = authMode==='login' ? 'Entrar' : 'Criar conta';
-  document.getElementById('authBtn').textContent     = authMode==='login' ? 'Entrar' : 'Criar conta';
-  document.getElementById('authToggle').textContent  = authMode==='login' ? 'Não tem conta? Criar conta' : 'Já tem conta? Entrar';
+  const login = authMode === 'login';
+  document.getElementById('authTitle').textContent = login ? 'Entrar na sua conta' : 'Criar uma conta';
+  document.getElementById('authSub').textContent   = login ? 'Use seu e-mail e senha para acessar.' : 'Cadastre-se; o marketing libera seu acesso depois.';
+  document.getElementById('authBtn').textContent    = login ? 'Entrar' : 'Criar conta';
+  document.getElementById('authToggle').textContent = login ? 'Não tem conta? Criar conta' : 'Já tem conta? Entrar';
+  document.getElementById('signupFields').style.display = login ? 'none' : '';
   document.getElementById('authMsg').className = 'msg';
 }
 function authPrimary(){ return authMode === 'login' ? entrar() : cadastrar(); }
 
 async function cadastrar(){
+  const nome = document.getElementById('snome').value.trim();
+  const sobrenome = document.getElementById('ssobrenome').value.trim();
   const email = document.getElementById('email').value.trim();
   const senha = document.getElementById('senha').value;
-  if(!email || !senha){ show('authMsg','err','Preencha e-mail e senha.'); return; }
-  const { data, error } = await sb.auth.signUp({ email, password: senha });
+  if(!nome || !sobrenome || !email || !senha){ show('authMsg','err','Preencha nome, sobrenome, e-mail e senha.'); return; }
+  const { data, error } = await sb.auth.signUp({ email, password: senha, options: { data: { nome, sobrenome } } });
   if(error){ show('authMsg','err', error.message); return; }
   if(data.session){
     document.getElementById('authCard').classList.add('hidden');
@@ -294,7 +317,14 @@ async function abrirApp(session){
   if(!valido){ return; }
   if(papel === 'marketing'){ carregarPendentes(); carregarAgencias(); carregarPessoas(); document.getElementById('mesesBox').innerHTML=''; addMesRow(); }
   if(papel === 'administrativo'){ carregarAprovadas(); carregarValidar(); }
-  if(papel === 'agencia') carregarStatusAg();
+  if(papel === 'agencia'){
+    const { data: minhaAg } = await sb.rpc('agencia_atual');
+    const elAg = document.getElementById('sAg');
+    elAg.value = minhaAg || '';
+    elAg.readOnly = true;
+    elAg.style.background = '#f3f4f6';
+    carregarStatusAg();
+  }
   carregarNotificacoes();
   assinarNotificacoes();
   carregarProjetos();
@@ -307,12 +337,13 @@ async function sair(){
 }
 
 async function carregarProjetos(){
-  const { data, error } = await sb.from('projetos').select('id,nome').order('nome');
-  if(error){ show('agMsg','err',error.message); return; }
+  const { data } = await sb.from('projetos').select('id,nome').order('nome');
   const opts = (data||[]).map(p=>`<option value="${p.id}">${p.nome}</option>`).join('');
   document.getElementById('sProj').innerHTML = opts || '<option value="">— nenhum projeto —</option>';
-  document.getElementById('vProj').innerHTML = opts || '<option value="">— nenhum projeto —</option>';
-  if(data && data.length) carregar();
+  document.getElementById('vProj').innerHTML = '<option value="todos">Todos os projetos</option>' + opts;
+  const vm = document.getElementById('vMes');
+  if(vm && !vm.value){ const d=new Date(); vm.value = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+  carregar();
 }
 
 // ----- Marketing: pessoas e papéis -----
@@ -322,36 +353,41 @@ async function carregarPessoas(){
   if(error){ box.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
   if(!data || !data.length){ box.innerHTML='<div class="empty">Ninguém cadastrado ainda.</div>'; return; }
   const papeis = ['pendente','agencia','marketing','administrativo'];
-  box.innerHTML = '<table><thead><tr><th>E-mail</th><th>Papel</th><th>Agência</th><th>Ação</th></tr></thead><tbody>'
+  box.innerHTML = '<table><thead><tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Agência</th><th>Ação</th></tr></thead><tbody>'
     + data.map(p=>{
-        const opts = papeis.map(r=>`<option value="${r}" ${p.papel===r?'selected':''}>${r}</option>`).join('');
+        const nomeCompleto = [p.nome, p.sobrenome].filter(Boolean).join(' ') || '—';
+        const opts = '<option value="">Selecione…</option>'
+          + papeis.map(r=>`<option value="${r}" ${p.papel===r?'selected':''}>${r}</option>`).join('');
+        const ehAg = p.papel === 'agencia';
         return `<tr>
+          <td>${nomeCompleto}</td>
           <td>${p.email||'—'}</td>
-          <td><select id="pa_${p.user_id}">${opts}</select></td>
-          <td><input id="ag_${p.user_id}" value="${p.agencia||''}" placeholder="(se agência)" style="max-width:140px"></td>
+          <td><select id="pa_${p.user_id}" onchange="toggleAgenciaPessoa('${p.user_id}')">${opts}</select></td>
+          <td><select id="ag_${p.user_id}" ${ehAg?'':'disabled'}>${opcoesAgencia(p.agencia)}</select></td>
           <td><button class="sm" onclick="salvarPapel('${p.user_id}')">Salvar</button></td>
         </tr>`;
       }).join('') + '</tbody></table>';
 }
+function toggleAgenciaPessoa(userId){
+  const papel = document.getElementById('pa_'+userId).value;
+  const agSel = document.getElementById('ag_'+userId);
+  agSel.disabled = (papel !== 'agencia');
+  if(papel !== 'agencia') agSel.value = '';
+}
 async function salvarPapel(userId){
   const papel = document.getElementById('pa_'+userId).value;
-  const agencia = document.getElementById('ag_'+userId).value.trim();
+  const agencia = document.getElementById('ag_'+userId).value;
+  if(!papel){ alert('Escolha um papel.'); return; }
+  if(papel === 'agencia' && !agencia){ alert('Escolha a agência.'); return; }
   const { error } = await sb.rpc('definir_papel', { p_user: userId, p_papel: papel, p_agencia: agencia || null });
   if(error){ alert(error.message); return; }
   carregarPessoas();
-  carregarAgencias();
 }
 
 // ----- Marketing: criar projeto com agência e distribuição mensal -----
 let mesSeq = 0;
-async function carregarAgencias(){
-  const sel = document.getElementById('pAgencia');
-  const { data, error } = await sb.rpc('listar_agencias');
-  if(error){ sel.innerHTML='<option value="">(erro ao listar)</option>'; return; }
-  const ags = data || [];
-  sel.innerHTML = ags.length
-    ? ags.map(a=>`<option value="${a}">${a}</option>`).join('')
-    : '<option value="">— nenhuma agência cadastrada —</option>';
+function carregarAgencias(){
+  document.getElementById('pAgencia').innerHTML = opcoesAgencia();
 }
 function addMesRow(){
   mesSeq++;
@@ -449,20 +485,45 @@ function projetoCompetencia(){ return compAtual; }
 
 async function carregar(){
   const id = document.getElementById('vProj').value;
-  if(!id){ return; }
-  // descobre a competência do teto desse projeto
-  const { data: tetos } = await sb.from('tetos').select('competencia,teto')
-    .eq('projeto_id', id).order('competencia',{ascending:false}).limit(1);
-  if(!tetos || !tetos.length){ document.getElementById('lista').innerHTML='<div class="empty">Sem teto cadastrado.</div>'; return; }
-  compAtual = tetos[0].competencia;
+  const mes = document.getElementById('vMes').value;
+  const meterBox = document.getElementById('meterBox');
+  const overview = document.getElementById('overview');
+  const lista = document.getElementById('lista');
+  if(!mes){ return; }
+  const comp = mes + '-01';
+  const { data: saldo } = await sb.rpc('saldo_mensal', { p_competencia: comp });
 
-  const { data: saldo } = await sb.rpc('saldo_mensal', { p_competencia: compAtual });
-  const linha = (saldo||[]).find(s=>s.projeto_id===id);
-  if(linha) desenharMeter(linha);
+  if(id === 'todos' || !id){
+    meterBox.classList.add('hidden');
+    lista.innerHTML = '';
+    desenharOverview(saldo || []);
+    return;
+  }
+  overview.innerHTML = '';
+  const linha = (saldo||[]).find(s => s.projeto_id === id);
+  if(linha){ desenharMeter(linha); } else { meterBox.classList.add('hidden'); }
 
-  const { data: lista } = await sb.from('pos').select('*')
-    .eq('projeto_id', id).eq('competencia', compAtual).order('solicitado_em',{ascending:false});
-  desenharLista(lista||[]);
+  const { data: rows } = await sb.from('pos').select('*')
+    .eq('projeto_id', id).eq('competencia', comp).order('solicitado_em',{ascending:false});
+  desenharLista(rows || []);
+}
+
+function desenharOverview(rows){
+  const ov = document.getElementById('overview');
+  if(!rows.length){ ov.innerHTML='<div class="empty">Nenhum projeto com teto neste mês.</div>'; return; }
+  let tt=0,tc=0,tp=0,ts=0;
+  const body = rows.map(r=>{
+    tt+=Number(r.teto); tc+=Number(r.comprometido); tp+=Number(r.pendente); ts+=Number(r.saldo);
+    return `<tr>
+      <td>${r.projeto}</td>
+      <td class="r num">${BRL(r.teto)}</td>
+      <td class="r num">${BRL(r.comprometido)}</td>
+      <td class="r num">${BRL(r.pendente)}</td>
+      <td class="r num">${BRL(r.saldo)}</td></tr>`;
+  }).join('');
+  ov.innerHTML = `<table><thead><tr><th>Projeto</th><th class="r">Teto</th><th class="r">Comprometido</th><th class="r">Pendente</th><th class="r">Saldo</th></tr></thead><tbody>${body}
+    <tr style="font-weight:700"><td>Total</td><td class="r num">${BRL(tt)}</td><td class="r num">${BRL(tc)}</td><td class="r num">${BRL(tp)}</td><td class="r num">${BRL(ts)}</td></tr>
+    </tbody></table>`;
 }
 
 function desenharMeter(s){
