@@ -140,12 +140,15 @@
     <div id="authMsg" class="msg"></div>
   </div>
 
-  <!-- Recuperação: definir nova senha (ao voltar pelo link do e-mail) -->
+  <!-- Recuperação por código de 6 dígitos -->
   <div id="resetCard" class="card hidden">
-    <h2>Definir nova senha</h2>
-    <div class="sub" style="margin:-4px 0 14px">Crie uma nova senha de acesso.</div>
+    <h2>Redefinir senha</h2>
+    <div class="sub" style="margin:-4px 0 14px">Enviamos um código de 6 dígitos para o seu e-mail. Digite o código e a nova senha.</div>
+    <div class="field"><label>E-mail</label><input id="resetEmail" type="email" placeholder="voce@empresa.com" /></div>
+    <div class="field"><label>Código recebido por e-mail</label><input id="resetCode" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" /></div>
     <div class="field"><label>Nova senha</label><input id="novaSenha" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')definirNovaSenha()" /></div>
     <button onclick="definirNovaSenha()">Salvar nova senha</button>
+    <button class="ghost" onclick="recuperarSenha(true)">Reenviar código</button>
     <div id="resetMsg" class="msg"></div>
   </div>
 
@@ -386,14 +389,18 @@ function toggleAuth(){
 }
 function authPrimary(){ return authMode === 'login' ? entrar() : cadastrar(); }
 
-// ----- Esqueci minha senha -----
-async function recuperarSenha(){
-  const email = document.getElementById('email').value.trim();
-  if(!email){ show('authMsg','err','Digite seu e-mail no campo acima para receber o link.'); return; }
-  const redir = location.origin + location.pathname;
-  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: redir });
-  if(error){ show('authMsg','err', error.message); return; }
-  show('authMsg','ok','Enviamos um link de redefinição para '+email+'. Confira a caixa de entrada (e o spam).');
+// ----- Esqueci minha senha (por código de 6 dígitos) -----
+async function recuperarSenha(reenvio){
+  const fonte = reenvio ? 'resetEmail' : 'email';
+  const email = document.getElementById(fonte).value.trim();
+  const alvo = reenvio ? 'resetMsg' : 'authMsg';
+  if(!email){ show(alvo,'err','Digite seu e-mail para receber o código.'); return; }
+  const { error } = await sb.auth.resetPasswordForEmail(email);
+  if(error){ show(alvo,'err', error.message); return; }
+  mostrarReset();
+  document.getElementById('resetEmail').value = email;
+  document.getElementById('resetCode').focus();
+  show('resetMsg','ok','Enviamos um código de 6 dígitos para '+email+'. Confira a caixa de entrada (e o spam) e digite abaixo.');
 }
 function mostrarReset(){
   ['connCard','authCard','app'].forEach(id=>{ const e=document.getElementById(id); if(e) e.classList.add('hidden'); });
@@ -402,14 +409,23 @@ function mostrarReset(){
 async function definirNovaSenha(){
   const senha = document.getElementById('novaSenha').value;
   if(!senha || senha.length < 6){ show('resetMsg','err','A senha precisa ter ao menos 6 caracteres.'); return; }
+  // Se ainda não há sessão de recuperação, valida o código primeiro
+  let { data:{ session } } = await sb.auth.getSession();
+  if(!session){
+    const email = document.getElementById('resetEmail').value.trim();
+    const code  = document.getElementById('resetCode').value.trim();
+    if(!email || !code){ show('resetMsg','err','Informe o e-mail e o código recebido.'); return; }
+    const v = await sb.auth.verifyOtp({ email, token: code, type: 'recovery' });
+    if(v.error){ show('resetMsg','err','Código inválido ou expirado. Clique em "Reenviar código".'); return; }
+    session = v.data.session;
+  }
   const { error } = await sb.auth.updateUser({ password: senha });
   if(error){ show('resetMsg','err', error.message); return; }
   document.getElementById('resetCard').classList.add('hidden');
-  const { data:{ session } } = await sb.auth.getSession();
   if(session){ await abrirApp(session); }
   else { document.getElementById('authCard').classList.remove('hidden'); show('authMsg','ok','Senha alterada! Entre com a nova senha.'); }
 }
-// Quando a pessoa volta pelo link do e-mail, o Supabase dispara PASSWORD_RECOVERY
+// Caso a pessoa ainda venha por um link válido, mostra a tela de redefinição
 function ouvirAuth(){
   if(window._authOuvido) return; window._authOuvido = true;
   sb.auth.onAuthStateChange((event)=>{ if(event === 'PASSWORD_RECOVERY'){ mostrarReset(); } });
@@ -1031,11 +1047,23 @@ function assinarNotificacoes(){
 
 // Ao abrir a página: se URL/anon key já estiverem preenchidas no topo, conecta sozinho
 (async function init(){
+  // Se a pessoa chegou por um link de e-mail já invalidado, avisa e limpa a URL
+  let avisoLink = '';
+  if(location.hash && location.hash.indexOf('error') !== -1){
+    avisoLink = 'O link do e-mail expira muito rápido (a segurança do e-mail costuma abri-lo antes de você). '
+              + 'Use o código: clique em "Esqueci minha senha", informe seu e-mail e digite o código de 6 dígitos.';
+    history.replaceState(null, '', location.pathname);
+  }
   if(SUPABASE_URL && SUPABASE_ANON){
     document.getElementById('connCard').classList.add('hidden');
     sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
     ouvirAuth();
     await rotear();
+  }
+  if(avisoLink){
+    document.getElementById('authCard').classList.remove('hidden');
+    document.getElementById('app').classList.add('hidden');
+    show('authMsg','err', avisoLink);
   }
 })();
 </script>
