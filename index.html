@@ -908,6 +908,13 @@ async function carregar(){
   desenharLista(rows || []);
 }
 
+async function cancelarProjeto(id, nome){
+  if(!confirm('Cancelar o projeto "'+(nome||'')+'" por inteiro?\n\nIsso apaga o projeto e TODAS as POs e tetos dele. Esta ação é permanente.')) return;
+  const { error } = await sb.rpc('cancelar_projeto', { p_projeto: id });
+  if(error){ alert(error.message); return; }
+  carregarProjetos(); preencherListas(); carregar();
+}
+
 function desenharOverview(rows){
   const ov = document.getElementById('overview');
   if(!rows.length){ ov.innerHTML='<div class="empty">Nenhum projeto com teto neste mês.</div>'; return; }
@@ -921,7 +928,7 @@ function desenharOverview(rows){
     const barra = `<div style="display:flex;align-items:center;gap:7px">
         <div class="bar-mini"><span style="width:${pct}%;background:${cor}"></span></div>
         <span class="num" style="font-size:11.5px;min-width:34px;text-align:right">${pct}%</span></div>`;
-    const acao = podeEditar ? `<td><button class="ghost sm" onclick="editarProjeto('${r.projeto_id}')">Editar</button></td>` : '';
+    const acao = podeEditar ? `<td style="white-space:nowrap"><button class="ghost sm" onclick="editarProjeto('${r.projeto_id}')">Editar</button><button class="ghost sm" onclick="cancelarProjeto('${r.projeto_id}','${(r.projeto||'').replace(/'/g,'')}')">Cancelar</button></td>` : '';
     return `<tr>
       <td><a href="#" onclick="mostrarPOsProjeto('${r.projeto_id}');return false" title="ver todas as POs">${r.projeto}</a></td>
       <td class="r num">${BRL(teto)}</td>
@@ -1028,20 +1035,30 @@ async function carregarAprovadas(){
     .eq('status','APROVADA').order('atualizado_em');
   if(error){ box.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
   if(!data || !data.length){ box.innerHTML='<div class="empty">Nenhuma PO aprovada aguardando número.</div>'; return; }
-  box.innerHTML = '<table><thead><tr><th>Projeto</th><th>Agência</th><th class="r">Valor</th><th>Número + gerar</th></tr></thead><tbody>'
+  box.innerHTML = '<table><thead><tr><th>Projeto</th><th>Agência</th><th class="r">Valor</th><th>Nº PO · arquivo · gerar</th></tr></thead><tbody>'
     + data.map(r=>`<tr>
         <td>${r.projetos?r.projetos.nome:'—'}</td>
         <td>${r.agencia}</td>
         <td class="r num">${BRL(r.valor)}</td>
-        <td style="display:flex;gap:6px;align-items:center"><input id="num_${r.id}" placeholder="nº da PO" style="max-width:130px" /><button class="sm" onclick="gerar('${r.id}')">Gerar</button></td>
+        <td style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <input id="num_${r.id}" placeholder="nº da PO" style="max-width:120px" />
+          <input id="pof_${r.id}" type="file" style="max-width:210px" />
+          <button class="sm" onclick="gerar('${r.id}')">Gerar e enviar</button></td>
       </tr>`).join('')
     + '</tbody></table>';
 }
 async function gerar(id){
   const num = document.getElementById('num_'+id).value.trim();
+  const arq = document.getElementById('pof_'+id).files[0];
   if(!num){ alert('Informe o número da PO.'); return; }
-  const { error } = await sb.rpc('gerar_po', { p_po: id, p_numero: num });
-  if(error){ alert(error.message); }
+  if(!arq){ alert('Anexe o arquivo da PO (ele será enviado para a agência).'); return; }
+  const seguro = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+                       .replace(/[^a-zA-Z0-9._-]/g,'_').replace(/_+/g,'_');
+  const path = id+'/po_'+Date.now()+'_'+seguro(arq.name);
+  const up = await sb.storage.from('evidencias').upload(path, arq);
+  if(up.error){ alert('Falha no upload do arquivo da PO: '+up.error.message); return; }
+  const { error } = await sb.rpc('gerar_po', { p_po: id, p_numero: num, p_arquivo: path });
+  if(error){ alert(error.message); return; }
   await carregarAprovadas(); refrescarSaldo();
 }
 
