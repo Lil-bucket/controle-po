@@ -75,6 +75,7 @@
     border:1px solid #f0c9cc;border-radius:20px;padding:2px 10px;background:#fdeced}
   .card.collapsible:not(.collapsed) > :first-child::after{content:'▾ recolher'}
   .card.collapsed.collapsible > :first-child::after{content:'▸ expandir'}
+  #cardMkt.collapsed.collapsible > :first-child::after{content:'▸ criar novo projeto'}
   .card.collapsible > :first-child:hover::after{background:var(--teal);color:#fff;border-color:var(--teal)}
   .card.collapsed > :not(:first-child){display:none}
   /* destaque de novidade no bloco de status */
@@ -645,7 +646,7 @@ async function carregarPessoas(){
           <td>${p.email||'—'}</td>
           <td><select id="pa_${p.user_id}" onchange="toggleAgenciaPessoa('${p.user_id}')">${opts}</select></td>
           <td><select id="ag_${p.user_id}" ${ehAg?'':'disabled'}>${opcoesAgencia(p.agencia)}</select></td>
-          <td style="white-space:nowrap"><button class="sm" onclick="salvarPapel('${p.user_id}')">Salvar</button><button class="ghost sm" onclick="deletarUsuario('${p.user_id}','${(p.email||'').replace(/'/g,'')}')">Excluir</button></td>
+          <td style="white-space:nowrap"><button class="sm" id="sv_${p.user_id}" onclick="salvarPapel('${p.user_id}')">Salvar</button><button class="ghost sm" onclick="deletarUsuario('${p.user_id}','${(p.email||'').replace(/'/g,'')}')">Excluir</button></td>
         </tr>`;
       }).join('') + '</tbody></table>';
 }
@@ -692,7 +693,9 @@ async function salvarPapel(userId){
   if(papel === 'agencia' && !agencia){ alert('Escolha a agência.'); return; }
   const { error } = await sb.rpc('definir_papel', { p_user: userId, p_papel: papel, p_agencia: agencia || null });
   if(error){ alert(error.message); return; }
-  carregarPessoas();
+  const btn = document.getElementById('sv_'+userId);
+  if(btn){ btn.textContent = '✓ Salvo'; btn.style.background = 'var(--green)'; btn.disabled = true; }
+  setTimeout(carregarPessoas, 1300);
 }
 
 // ----- Marketing: criar projeto com agência e distribuição mensal -----
@@ -806,8 +809,10 @@ async function editarProjeto(id){
 function cancelarEdicao(){
   EDIT_PROJ = null;
   document.getElementById('pNome').value='';
+  ['pAgencia','pCat','pAtiv','pProjTag'].forEach(id=>{ const e=document.getElementById(id); if(e) e.value=''; });
   document.getElementById('previewClass').innerHTML='';
   document.getElementById('mesesBox').innerHTML=''; addMesRow();
+  atualizarTotalProjeto();
   document.getElementById('cardMktTxt').textContent = 'Marketing — criar projeto';
   document.getElementById('btnProj').textContent = 'Criar projeto';
   document.getElementById('btnCancelProj').style.display = 'none';
@@ -848,6 +853,10 @@ async function solicitar(){
       if(a){ const nome=[a.nome,a.sobrenome].filter(Boolean).join(' '); quem = ' Enviada para aprovação de '+(nome?nome+' ':'')+'('+a.email+').'; }
     }catch(_){}
     show('agMsg','ok', `PO de ${BRL(val)} solicitada (status Solicitada). Valor reservado como pendente.`+quem);
+    document.getElementById('sProj').value='';
+    document.getElementById('sVal').value='';
+    document.getElementById('sDesc').value='';
+    document.getElementById('aprovadorHint').textContent='';
   }
   carregar();
   if(PAPEL === 'agencia') carregarStatusAg();
@@ -1072,15 +1081,17 @@ async function carregarStatusAg(){
     const titulo = (r.status==='ATUALIZAR_INFO') ? 'Atualizar e reenviar NF' : 'Faturar — enviar NF e evidências';
     return `<details${aberto}>
       <summary>${titulo}</summary>
-      <div class="det-body" style="display:flex;flex-direction:column;gap:7px">
+      <div class="det-body" style="display:flex;flex-direction:column;gap:8px">
         ${motivo}
-        <div class="field" style="margin:0"><label>Número da NF</label>
-          <input id="nfn_${r.id}" placeholder="Ex.: 12345" oninput="previewVenc('${r.id}')" /></div>
-        <label class="sub" style="margin:0">Nota fiscal (arquivo)</label>
-        <input id="nf_${r.id}" type="file" onchange="previewVenc('${r.id}')" />
-        <label class="sub" style="margin:0">Evidência (arquivo)</label>
-        <input id="ev_${r.id}" type="file" onchange="previewVenc('${r.id}')" />
-        <div id="venc_${r.id}" class="sub" style="margin:2px 0">Preencha número da NF, nota e evidência para ver o vencimento.</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+          <div class="field" style="margin:0;flex:1;min-width:140px"><label>Número da NF</label>
+            <input id="nfn_${r.id}" placeholder="Ex.: 12345" oninput="previewVenc('${r.id}')" /></div>
+          <div class="field" style="margin:0;flex:1;min-width:160px"><label>Nota fiscal (arquivo)</label>
+            <input id="nf_${r.id}" type="file" onchange="previewVenc('${r.id}')" /></div>
+          <div class="field" style="margin:0;flex:1;min-width:160px"><label>Evidência (arquivo)</label>
+            <input id="ev_${r.id}" type="file" onchange="previewVenc('${r.id}')" /></div>
+        </div>
+        <div id="venc_${r.id}" class="sub" style="margin:0">Preencha número da NF, nota e evidência para ver o vencimento.</div>
         <button class="sm" onclick="enviarNf('${r.id}')">Enviar faturamento</button>
       </div></details>`;
   };
