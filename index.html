@@ -213,7 +213,8 @@
     <!-- Agência: solicitar PO -->
     <div class="card" id="cardAg">
       <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>Agência — solicitar PO</h2>
-      <div class="field"><label>Projeto</label><select id="sProj"></select></div>
+      <div class="field"><label>Projeto</label><select id="sProj" onchange="mostrarAprovador()"></select></div>
+      <div id="aprovadorHint" class="sub" style="margin:-4px 0 12px"></div>
       <div class="row">
         <div class="field"><label>Agência</label><input id="sAg" placeholder="Agência X" /></div>
         <div class="field"><label>Valor</label><input id="sVal" type="text" inputmode="numeric" placeholder="R$ 4.000,00" /></div>
@@ -840,10 +841,29 @@ async function solicitar(){
       show('agMsg','err', error.message);
     }
   } else {
-    show('agMsg','ok', `PO de ${BRL(val)} solicitada (status SOLICITADA). Valor reservado como pendente.`);
+    let quem = '';
+    try{
+      const { data: ap } = await sb.rpc('aprovador_do_projeto', { p_projeto: projeto });
+      const a = ap && ap[0];
+      if(a){ const nome=[a.nome,a.sobrenome].filter(Boolean).join(' '); quem = ' Enviada para aprovação de '+(nome?nome+' ':'')+'('+a.email+').'; }
+    }catch(_){}
+    show('agMsg','ok', `PO de ${BRL(val)} solicitada (status Solicitada). Valor reservado como pendente.`+quem);
   }
   carregar();
   if(PAPEL === 'agencia') carregarStatusAg();
+}
+
+async function mostrarAprovador(){
+  const proj = document.getElementById('sProj').value;
+  const hint = document.getElementById('aprovadorHint');
+  if(!proj){ hint.textContent=''; return; }
+  try{
+    const { data: ap } = await sb.rpc('aprovador_do_projeto', { p_projeto: proj });
+    const a = ap && ap[0];
+    if(a){ const nome=[a.nome,a.sobrenome].filter(Boolean).join(' ');
+      hint.innerHTML = 'Aprovação será enviada para <b>'+(nome||a.email)+'</b>'+(nome?' ('+a.email+')':'')+'.'; }
+    else { hint.textContent = 'Este projeto ainda não tem responsável definido.'; }
+  }catch(_){ hint.textContent=''; }
 }
 
 // usa o mês do projeto selecionado na seção de saldo (ou o do projeto em foco)
