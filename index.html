@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Controle de PO</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   :root{
     --bg:#f1f2f4; --card:#ffffff; --ink:#1a1a1a; --muted:#6b6f76;
@@ -290,7 +291,8 @@
 
     <!-- Saldo + lista -->
     <div class="card" id="cardSaldo">
-      <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>Saldo e visão geral</h2>
+      <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>Saldo e visão geral
+        <button id="btnExtrato" class="sm" style="display:none;float:right" onclick="exportarExtrato()">⬇ Exportar extrato</button></h2>
       <div class="row">
         <div class="field"><label>Projeto</label><select id="vProj" onchange="carregar()"></select></div>
         <div class="field"><label>Mês</label><input id="vMes" type="month" onchange="carregar()"></div>
@@ -571,6 +573,7 @@ function layoutPorPapel(papel){
   const todos = ['cardNotif','cardSaldo','cardMkt','cardPessoas','cardAprovar',
     'cardStatusMkt','cardStatusAll','cardGerar','cardValidar','cardAg','cardStatusAg'];
   todos.forEach(id=>{ const c=document.getElementById(id); if(c){ c.style.display='none'; c.classList.remove('collapsible','collapsed'); }});
+  const be=document.getElementById('btnExtrato'); if(be) be.style.display = (papel==='admin'||papel==='financeiro') ? '' : 'none';
 
   if(papel === 'marketing'){
     setCard('cardStatusMkt', true);          // status das POs (com aprovar/rejeitar)
@@ -1043,6 +1046,51 @@ async function gerar(id){
 }
 
 function refrescarSaldo(){ const id=document.getElementById('vProj').value; if(id) carregar(); }
+
+// ----- Exportar extrato (admin/financeiro) no formato da referência -----
+async function exportarExtrato(){
+  const btn = document.getElementById('btnExtrato');
+  const mesInput = document.getElementById('vMes').value;           // "YYYY-MM"
+  const comp = (mesInput ? mesInput : new Date().toISOString().slice(0,7)) + '-01';
+  if(btn){ btn.disabled=true; btn.textContent='Gerando…'; }
+  try{
+    const { data, error } = await sb.rpc('extrato_mensal', { p_competencia: comp });
+    if(error) throw error;
+    const rows = data || [];
+    const [ano,mes] = comp.split('-');
+    const titulo = 'Extrato de POs — ' + mes + '/' + ano;
+
+    // Cabeçalho no padrão da referência
+    const aoa = [
+      [titulo],
+      [],
+      ['Categoria','C.C.','Account','Account description','Budget','Expenses','Balance']
+    ];
+    let tBud=0, tExp=0;
+    rows.forEach(r=>{
+      const bud=Number(r.budget)||0, exp=Number(r.expenses)||0;
+      tBud+=bud; tExp+=exp;
+      aoa.push([r.categoria||'—', r.cc||'', r.account||'', r.account_desc||'', bud, exp, bud-exp]);
+    });
+    aoa.push(['','','','total', tBud, tExp, tBud-tExp]);
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [{wch:10},{wch:14},{wch:12},{wch:40},{wch:14},{wch:14},{wch:14}];
+    ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:6}}];
+    // formato de número nas colunas Budget/Expenses/Balance
+    const fim = aoa.length;
+    for(let R=3; R<=fim; R++){
+      ['E','F','G'].forEach(C=>{ const cel=ws[C+R]; if(cel && typeof cel.v==='number') cel.z='#,##0'; });
+    }
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Extrato');
+    XLSX.writeFile(wb, 'extrato_POs_'+ano+'-'+mes+'.xlsx');
+  }catch(e){
+    alert('Não foi possível gerar o extrato: ' + (e.message||e));
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent='⬇ Exportar extrato'; }
+  }
+}
 
 // ----- Status: rótulo, cor e ícone por estado -----
 const STATUS_META = {
