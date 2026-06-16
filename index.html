@@ -136,7 +136,17 @@
     <div class="field"><label>Senha</label><input id="senha" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')authPrimary()" /></div>
     <button id="authBtn" onclick="authPrimary()">Entrar</button>
     <div class="sub" style="margin-top:10px"><a href="#" id="authToggle" onclick="toggleAuth();return false">Não tem conta? Criar conta</a></div>
+    <div class="sub" style="margin-top:6px" id="forgotRow"><a href="#" onclick="recuperarSenha();return false">Esqueci minha senha</a></div>
     <div id="authMsg" class="msg"></div>
+  </div>
+
+  <!-- Recuperação: definir nova senha (ao voltar pelo link do e-mail) -->
+  <div id="resetCard" class="card hidden">
+    <h2>Definir nova senha</h2>
+    <div class="sub" style="margin:-4px 0 14px">Crie uma nova senha de acesso.</div>
+    <div class="field"><label>Nova senha</label><input id="novaSenha" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')definirNovaSenha()" /></div>
+    <button onclick="definirNovaSenha()">Salvar nova senha</button>
+    <div id="resetMsg" class="msg"></div>
   </div>
 
   <!-- App -->
@@ -332,6 +342,7 @@ async function conectar(){
   }
   try{
     sb = supabase.createClient(url, key);
+    ouvirAuth();
     document.getElementById('connCard').classList.add('hidden');
     await rotear();
   }catch(e){ show('connMsg','err','Não consegui conectar: '+e.message); }
@@ -370,9 +381,39 @@ function toggleAuth(){
   document.getElementById('authBtn').style.background = login ? '' : 'var(--amber)';
   document.getElementById('authToggle').textContent = login ? 'Não tem conta? Criar conta' : 'Já tem conta? Entrar';
   document.getElementById('signupFields').style.display = login ? 'none' : '';
+  document.getElementById('forgotRow').style.display = login ? '' : 'none';
   document.getElementById('authMsg').className = 'msg';
 }
 function authPrimary(){ return authMode === 'login' ? entrar() : cadastrar(); }
+
+// ----- Esqueci minha senha -----
+async function recuperarSenha(){
+  const email = document.getElementById('email').value.trim();
+  if(!email){ show('authMsg','err','Digite seu e-mail no campo acima para receber o link.'); return; }
+  const redir = location.origin + location.pathname;
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: redir });
+  if(error){ show('authMsg','err', error.message); return; }
+  show('authMsg','ok','Enviamos um link de redefinição para '+email+'. Confira a caixa de entrada (e o spam).');
+}
+function mostrarReset(){
+  ['connCard','authCard','app'].forEach(id=>{ const e=document.getElementById(id); if(e) e.classList.add('hidden'); });
+  document.getElementById('resetCard').classList.remove('hidden');
+}
+async function definirNovaSenha(){
+  const senha = document.getElementById('novaSenha').value;
+  if(!senha || senha.length < 6){ show('resetMsg','err','A senha precisa ter ao menos 6 caracteres.'); return; }
+  const { error } = await sb.auth.updateUser({ password: senha });
+  if(error){ show('resetMsg','err', error.message); return; }
+  document.getElementById('resetCard').classList.add('hidden');
+  const { data:{ session } } = await sb.auth.getSession();
+  if(session){ await abrirApp(session); }
+  else { document.getElementById('authCard').classList.remove('hidden'); show('authMsg','ok','Senha alterada! Entre com a nova senha.'); }
+}
+// Quando a pessoa volta pelo link do e-mail, o Supabase dispara PASSWORD_RECOVERY
+function ouvirAuth(){
+  if(window._authOuvido) return; window._authOuvido = true;
+  sb.auth.onAuthStateChange((event)=>{ if(event === 'PASSWORD_RECOVERY'){ mostrarReset(); } });
+}
 
 async function cadastrar(){
   const nome = document.getElementById('snome').value.trim();
@@ -993,6 +1034,7 @@ function assinarNotificacoes(){
   if(SUPABASE_URL && SUPABASE_ANON){
     document.getElementById('connCard').classList.add('hidden');
     sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+    ouvirAuth();
     await rotear();
   }
 })();
