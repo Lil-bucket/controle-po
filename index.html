@@ -7,9 +7,9 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
-    --bg:#eef0f3; --card:#ffffff; --ink:#16181d; --muted:#697080;
-    --line:#e0e3e9; --teal:#0d6e7a; --teal-d:#0a5560;
-    --red:#c0392b; --amber:#cf8a16; --green:#1f8a4c;
+    --bg:#f1f2f4; --card:#ffffff; --ink:#1a1a1a; --muted:#6b6f76;
+    --line:#e3e4e8; --teal:#e20613; --teal-d:#bf0008;
+    --gold:#bd9f68; --red:#c0392b; --amber:#cf8a16; --green:#1f8a4c;
     --mono:ui-monospace,"JetBrains Mono","SFMono-Regular",Menlo,Consolas,monospace;
     --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   }
@@ -19,13 +19,19 @@
   .wrap{max-width:880px;margin:0 auto;padding:28px 18px 80px}
   header{margin-bottom:22px}
   h1{font-size:22px;letter-spacing:-.02em;margin:0 0 4px}
+  .brandbar{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .brandbar .bm{font-weight:800;letter-spacing:.06em;color:var(--teal);font-size:15px;
+    border-left:4px solid var(--teal);padding-left:9px;line-height:1}
+  .brandbar .bd{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
   .sub{color:var(--muted);font-size:13.5px}
   .banner{background:#fff7e6;border:1px solid #f0dca8;color:#8a6300;
     padding:10px 13px;border-radius:9px;font-size:13px;margin:14px 0 0}
   .card{background:var(--card);border:1px solid var(--line);border-radius:13px;
     padding:18px 18px 20px;margin-top:16px}
   .card h2{font-size:13px;text-transform:uppercase;letter-spacing:.07em;
-    color:var(--muted);margin:0 0 14px;font-weight:600}
+    color:var(--ink);margin:0 0 14px;font-weight:700;display:flex;align-items:center;gap:9px}
+  .card h2 .ic{width:18px;height:18px;color:var(--teal);flex:0 0 auto}
+  a{color:var(--teal);text-decoration:none} a:hover{text-decoration:underline}
   label{display:block;font-size:12.5px;color:var(--muted);margin:0 0 5px}
   input,select{width:100%;padding:9px 11px;border:1px solid var(--line);
     border-radius:8px;font-size:14px;font-family:var(--sans);background:#fff;color:var(--ink)}
@@ -35,8 +41,8 @@
   button{appearance:none;border:0;background:var(--teal);color:#fff;font-weight:600;
     font-size:14px;padding:10px 16px;border-radius:8px;cursor:pointer;font-family:var(--sans)}
   button:hover{background:var(--teal-d)} button:disabled{opacity:.5;cursor:default}
-  button.ghost{background:#fff;color:var(--teal);border:1px solid var(--line)}
-  button.ghost:hover{background:#f3f7f8}
+  button.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+  button.ghost:hover{background:#f4f5f6;border-color:#d4d6db}
   button.sm{padding:6px 11px;font-size:13px;margin-right:5px}
   .msg{margin-top:12px;padding:10px 13px;border-radius:8px;font-size:13.5px;display:none}
   .msg.ok{display:block;background:#e9f7ef;border:1px solid #b9e3cb;color:#176b3a}
@@ -64,8 +70,8 @@
   /* cards colapsáveis — clique nítido */
   .card.collapsible > :first-child{cursor:pointer;position:relative}
   .card.collapsible > :first-child::after{
-    float:right;font-size:11px;font-weight:700;color:var(--teal);
-    border:1px solid var(--line);border-radius:20px;padding:2px 10px;background:#f6fafa}
+    margin-left:auto;font-size:11px;font-weight:700;color:var(--teal);
+    border:1px solid #f0c9cc;border-radius:20px;padding:2px 10px;background:#fdeced}
   .card.collapsible:not(.collapsed) > :first-child::after{content:'▾ recolher'}
   .card.collapsed.collapsible > :first-child::after{content:'▸ expandir'}
   .card.collapsible > :first-child:hover::after{background:var(--teal);color:#fff;border-color:var(--teal)}
@@ -76,29 +82,29 @@
   .card.has-update::before{content:'● novidade';position:absolute;top:-10px;left:14px;
     background:var(--amber);color:#fff;font-size:10px;font-weight:700;padding:2px 10px;border-radius:20px;letter-spacing:.03em}
   /* grupo colapsável dentro de um card */
-  .grp-head{display:flex;align-items:center;cursor:pointer;font-weight:600;font-size:13px;
-    color:var(--teal-d);margin:10px 0 4px;padding:8px 11px;border:1px solid var(--line);
-    border-radius:8px;background:#f6fafa;user-select:none}
-  .grp-head:hover{background:#eef5f5}
+  .grp-head{display:flex;align-items:center;cursor:pointer;font-weight:700;font-size:13px;
+    color:var(--ink);margin:10px 0 4px;padding:8px 11px;border:1px solid var(--line);
+    border-radius:8px;background:#f6f6f8;user-select:none}
+  .grp-head:hover{background:#f0f0f2}
   .grp-head::before{content:'▸';color:var(--teal);font-weight:700;margin-right:7px}
   .grp-open .grp-head::before{content:'▾'}
   .grp-head::after{content:'clique para expandir';margin-left:auto;font-size:11px;color:var(--muted);font-weight:600}
   .grp-open .grp-head::after{content:'clique para recolher'}
   .grp-body{display:none;margin-top:8px} .grp-open .grp-body{display:block}
   /* disclosure por linha (faturar / arquivos) */
-  details{border:1px solid var(--line);border-radius:8px;margin:2px 0;background:#fbfcfd}
+  details{border:1px solid var(--line);border-radius:8px;margin:2px 0;background:#fbfbfc}
   summary{cursor:pointer;padding:8px 11px;font-weight:700;font-size:12.5px;color:var(--teal);
     list-style:none;display:flex;align-items:center;gap:7px}
   summary::-webkit-details-marker{display:none}
   summary::before{content:'▸';color:var(--teal);font-weight:700}
   details[open] summary::before{content:'▾'}
-  summary:hover{background:#eef5f5;border-radius:8px}
+  summary:hover{background:#f4f5f6;border-radius:8px}
   .det-body{padding:9px 11px;border-top:1px solid var(--line)}
   .warn-nf{display:inline-block;font-size:11px;font-weight:700;color:#b5550c;
     background:#ffe9d6;border-radius:20px;padding:1px 8px;margin-left:6px}
   .empty{color:var(--muted);font-size:13px;padding:8px 2px}
   .pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;vertical-align:2px;margin-left:6px;text-transform:uppercase;letter-spacing:.04em}
-  .pill-login{background:#d9f2f7;color:#0a5560}
+  .pill-login{background:#fdeced;color:#bf0008}
   .pill-signup{background:#fdecd6;color:#9a6207}
   .bar-mini{flex:1;height:9px;background:#eef0f3;border-radius:5px;overflow:hidden;min-width:54px}
   .bar-mini > span{display:block;height:100%}
@@ -107,6 +113,7 @@
 <body>
 <div class="wrap">
   <header>
+    <div class="brandbar"><span class="bm">TCL SEMP</span><span class="bd">Controle de PO</span></div>
     <h1>Controle de PO</h1>
     <div class="sub">Pedidos de ordem de pagamento com teto mensal por projeto</div>
     <div class="banner">Acesso por perfil: agência solicita PO e sobe NF; marketing cria projetos e aprova; financial gera PO e valida notas; admin vê tudo, aprova cadastros e gerencia usuários.</div>
@@ -114,7 +121,7 @@
 
   <!-- Conexão -->
   <div class="card" id="connCard">
-    <h2>1 · Conectar ao seu Supabase</h2>
+    <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v4a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></svg>Conectar ao seu Supabase</h2>
     <div class="field">
       <label>Project URL (Settings → API → Project URL)</label>
       <input id="url" placeholder="https://xxxx.supabase.co" />
@@ -167,14 +174,14 @@
 
     <!-- Acesso pendente -->
     <div class="card" id="cardPending">
-      <h2>Acesso aguardando liberação</h2>
+      <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Acesso aguardando liberação</h2>
       <div class="sub">Sua conta foi criada. Peça ao admin para liberar seu acesso e definir seu papel.</div>
     </div>
 
     <!-- Notificações -->
     <div class="card" id="cardNotif">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <h2 style="margin:0">Notificações</h2>
+        <h2 style="margin:0"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>Notificações</h2>
         <button class="ghost sm" onclick="carregarNotificacoes()">Atualizar</button>
       </div>
       <div id="listaNotif"></div>
@@ -182,7 +189,7 @@
 
     <!-- Marketing: criar projeto -->
     <div class="card" id="cardMkt">
-      <h2 id="cardMktTitle">Marketing — criar projeto</h2>
+      <h2 id="cardMktTitle"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2Z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg><span id="cardMktTxt">Marketing — criar projeto</span></h2>
       <div class="field"><label>Nome do projeto</label><input id="pNome" placeholder="Ex.: Gamescom Brasil 2026" /></div>
       <div class="field"><label>Agência responsável</label><select id="pAgencia" onchange="atualizarAtividades()"></select></div>
       <div class="row">
@@ -202,7 +209,7 @@
 
     <!-- Agência: solicitar PO -->
     <div class="card" id="cardAg">
-      <h2>3 · Agência — solicitar PO</h2>
+      <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>Agência — solicitar PO</h2>
       <div class="field"><label>Projeto</label><select id="sProj"></select></div>
       <div class="row">
         <div class="field"><label>Agência</label><input id="sAg" placeholder="Agência X" /></div>
@@ -215,49 +222,49 @@
 
     <!-- Agência: status das minhas POs -->
     <div class="card" id="cardStatusAg">
-      <h2>Status das minhas POs</h2>
+      <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>Status das minhas POs</h2>
       <div id="listaStatusAg"></div>
     </div>
 
     <!-- Marketing: aprovar pedidos (notificações com botões) -->
     <div class="card" id="cardAprovar">
-      <h2>Notificações — pedidos aguardando aprovação</h2>
+      <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>Pedidos aguardando aprovação</h2>
       <div id="listaPend"></div>
     </div>
 
     <!-- Marketing: status das POs aprovadas ainda não concluídas -->
     <div class="card" id="cardStatusMkt">
-      <h2>POs aprovadas em andamento</h2>
+      <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>POs aprovadas em andamento</h2>
       <div id="listaStatusMkt"></div>
     </div>
 
     <!-- Admin: status geral de todas as POs -->
     <div class="card" id="cardStatusAll">
-      <h2>Status de todas as POs</h2>
+      <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>Status de todas as POs</h2>
       <div id="listaStatusAll"></div>
     </div>
 
     <!-- Marketing: pessoas e papéis -->
     <div class="card" id="cardPessoas">
-      <h2>Marketing — pessoas e papéis</h2>
+      <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Pessoas e papéis</h2>
       <div id="listaPessoas"></div>
     </div>
 
     <!-- Admin: gerar número da PO -->
     <div class="card" id="cardGerar">
-      <h2>Gerar número da PO</h2>
+      <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>Gerar número da PO</h2>
       <div id="listaAprov"></div>
     </div>
 
     <!-- Admin: validar notas -->
     <div class="card" id="cardValidar">
-      <h2>Notas a validar</h2>
+      <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/></svg>Notas a validar</h2>
       <div id="listaValidar"></div>
     </div>
 
     <!-- Saldo + lista -->
     <div class="card" id="cardSaldo">
-      <h2>Saldo e visão geral</h2>
+      <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>Saldo e visão geral</h2>
       <div class="row">
         <div class="field"><label>Projeto</label><select id="vProj" onchange="carregar()"></select></div>
         <div class="field"><label>Mês</label><input id="vMes" type="month" onchange="carregar()"></div>
@@ -728,7 +735,7 @@ async function editarProjeto(id){
   if(!(tetos||[]).length) addMesRow();
   atualizarTotalProjeto();
   EDIT_PROJ = id;
-  document.getElementById('cardMktTitle').textContent = 'Editar projeto';
+  document.getElementById('cardMktTxt').textContent = 'Editar projeto';
   document.getElementById('btnProj').textContent = 'Salvar alterações';
   document.getElementById('btnCancelProj').style.display = '';
   if(card) card.scrollIntoView({behavior:'smooth', block:'start'});
@@ -738,7 +745,7 @@ function cancelarEdicao(){
   document.getElementById('pNome').value='';
   document.getElementById('previewClass').innerHTML='';
   document.getElementById('mesesBox').innerHTML=''; addMesRow();
-  document.getElementById('cardMktTitle').textContent = 'Marketing — criar projeto';
+  document.getElementById('cardMktTxt').textContent = 'Marketing — criar projeto';
   document.getElementById('btnProj').textContent = 'Criar projeto';
   document.getElementById('btnCancelProj').style.display = 'none';
 }
