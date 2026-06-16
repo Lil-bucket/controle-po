@@ -61,15 +61,36 @@
   .s-apr{background:#e2ecfb;color:#1d5fb0} .s-rej{background:#fdecea;color:#a02617}
   .s-pog{background:#ece3fb;color:#6b3fa0} .s-fat{background:#ffe9d6;color:#b5550c}
   .s-con{background:#e4f3ea;color:#176b3a} .s-can{background:#eef1f6;color:#8a909c}
-  /* cards colapsáveis */
-  .card.collapsible > :first-child{cursor:pointer}
-  .card.collapsible > :first-child::after{content:'▾';float:right;color:var(--muted);font-weight:400;font-size:13px}
-  .card.collapsed.collapsible > :first-child::after{content:'▸'}
+  /* cards colapsáveis — clique nítido */
+  .card.collapsible > :first-child{cursor:pointer;position:relative}
+  .card.collapsible > :first-child::after{
+    float:right;font-size:11px;font-weight:700;color:var(--teal);
+    border:1px solid var(--line);border-radius:20px;padding:2px 10px;background:#f6fafa}
+  .card.collapsible:not(.collapsed) > :first-child::after{content:'▾ recolher'}
+  .card.collapsed.collapsible > :first-child::after{content:'▸ expandir'}
+  .card.collapsible > :first-child:hover::after{background:var(--teal);color:#fff;border-color:var(--teal)}
   .card.collapsed > :not(:first-child){display:none}
-  .grp-head{display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;font-size:13px;
-    color:var(--teal-d);margin:10px 0 4px;user-select:none}
-  .grp-head::before{content:'▸';color:var(--muted)} .grp-open .grp-head::before{content:'▾'}
-  .grp-body{display:none} .grp-open .grp-body{display:block}
+  /* grupo colapsável dentro de um card */
+  .grp-head{display:flex;align-items:center;cursor:pointer;font-weight:600;font-size:13px;
+    color:var(--teal-d);margin:10px 0 4px;padding:8px 11px;border:1px solid var(--line);
+    border-radius:8px;background:#f6fafa;user-select:none}
+  .grp-head:hover{background:#eef5f5}
+  .grp-head::before{content:'▸';color:var(--teal);font-weight:700;margin-right:7px}
+  .grp-open .grp-head::before{content:'▾'}
+  .grp-head::after{content:'clique para expandir';margin-left:auto;font-size:11px;color:var(--muted);font-weight:600}
+  .grp-open .grp-head::after{content:'clique para recolher'}
+  .grp-body{display:none;margin-top:8px} .grp-open .grp-body{display:block}
+  /* disclosure por linha (faturar / arquivos) */
+  details{border:1px solid var(--line);border-radius:8px;margin:2px 0;background:#fbfcfd}
+  summary{cursor:pointer;padding:8px 11px;font-weight:700;font-size:12.5px;color:var(--teal);
+    list-style:none;display:flex;align-items:center;gap:7px}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:'▸';color:var(--teal);font-weight:700}
+  details[open] summary::before{content:'▾'}
+  summary:hover{background:#eef5f5;border-radius:8px}
+  .det-body{padding:9px 11px;border-top:1px solid var(--line)}
+  .warn-nf{display:inline-block;font-size:11px;font-weight:700;color:#b5550c;
+    background:#ffe9d6;border-radius:20px;padding:1px 8px;margin-left:6px}
   .empty{color:var(--muted);font-size:13px;padding:8px 2px}
   .pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;vertical-align:2px;margin-left:6px;text-transform:uppercase;letter-spacing:.04em}
   .pill-login{background:#d9f2f7;color:#0a5560}
@@ -804,6 +825,8 @@ function statusBadge(s){
   const m = STATUS_META[s] || {l:s,c:'s-sol',i:'•'};
   return `<span class="tag ${m.c}">${m.i} ${m.l}</span>`;
 }
+// PO gerada mas ainda sem nota fiscal enviada
+function avisoNF(s){ return s === 'PO_GERADA' ? ' <span class="warn-nf">⚠ sem NF</span>' : ''; }
 
 async function carregarStatusAg(){
   const box = document.getElementById('listaStatusAg');
@@ -816,17 +839,20 @@ async function carregarStatusAg(){
   const linha = r => {
     let acao;
     if(r.status==='PO_GERADA'){
-      acao = `<div style="display:flex;flex-direction:column;gap:5px">
-        <label class="sub" style="margin:0">Nota fiscal</label><input id="nf_${r.id}" type="file" />
-        <label class="sub" style="margin:0">Evidência (opcional)</label><input id="ev_${r.id}" type="file" />
-        <button class="sm" onclick="enviarNf('${r.id}')">Enviar</button></div>`;
+      acao = `<details>
+        <summary>Faturar — enviar NF e evidências</summary>
+        <div class="det-body" style="display:flex;flex-direction:column;gap:6px">
+          <label class="sub" style="margin:0">Nota fiscal</label><input id="nf_${r.id}" type="file" />
+          <label class="sub" style="margin:0">Evidência (opcional)</label><input id="ev_${r.id}" type="file" />
+          <button class="sm" onclick="enviarNf('${r.id}')">Enviar</button>
+        </div></details>`;
     } else if(['FATURADA','VALIDADA','CONCLUIDA'].includes(r.status)){ acao = 'Nota enviada'; }
     else if(r.status==='APROVADA'){ acao = 'Aguardando nº da PO'; }
     else { acao = '—'; }
     return `<tr><td>${r.projetos?r.projetos.nome:'—'}</td><td class="r num">${BRL(r.valor)}</td>
-      <td class="num">${r.numero_po||'—'}</td><td>${statusBadge(r.status)}</td><td>${acao}</td></tr>`;
+      <td class="num">${r.numero_po||'—'}</td><td>${statusBadge(r.status)}${avisoNF(r.status)}</td><td>${acao}</td></tr>`;
   };
-  const tabela = rows => '<table><thead><tr><th>Projeto</th><th class="r">Valor</th><th>Nº PO</th><th>Status</th><th>Nota fiscal</th></tr></thead><tbody>'
+  const tabela = rows => '<table><thead><tr><th>Projeto</th><th class="r">Valor</th><th>Nº PO</th><th>Status</th><th>Faturamento</th></tr></thead><tbody>'
     + rows.map(linha).join('') + '</tbody></table>';
 
   const FINAL = ['APROVADA','FATURADA','VALIDADA','CONCLUIDA'];
@@ -852,7 +878,7 @@ async function carregarStatusMkt(){
   if(!data || !data.length){ box.innerHTML='<div class="empty">Nenhuma PO aprovada em andamento.</div>'; return; }
   box.innerHTML = '<table><thead><tr><th>Projeto</th><th>Agência</th><th class="r">Valor</th><th>Nº PO</th><th>Status</th></tr></thead><tbody>'
     + data.map(r=>`<tr><td>${r.projetos?r.projetos.nome:'—'}</td><td>${r.agencia}</td>
-        <td class="r num">${BRL(r.valor)}</td><td class="num">${r.numero_po||'—'}</td><td>${statusBadge(r.status)}</td></tr>`).join('')
+        <td class="r num">${BRL(r.valor)}</td><td class="num">${r.numero_po||'—'}</td><td>${statusBadge(r.status)}${avisoNF(r.status)}</td></tr>`).join('')
     + '</tbody></table>';
 }
 
@@ -866,7 +892,7 @@ async function carregarStatusAll(){
   if(!data || !data.length){ box.innerHTML='<div class="empty">Nenhuma PO ainda.</div>'; return; }
   box.innerHTML = '<table><thead><tr><th>Projeto</th><th>Agência</th><th class="r">Valor</th><th>Nº PO</th><th>Status</th></tr></thead><tbody>'
     + data.map(r=>`<tr><td>${r.projetos?r.projetos.nome:'—'}</td><td>${r.agencia}</td>
-        <td class="r num">${BRL(r.valor)}</td><td class="num">${r.numero_po||'—'}</td><td>${statusBadge(r.status)}</td></tr>`).join('')
+        <td class="r num">${BRL(r.valor)}</td><td class="num">${r.numero_po||'—'}</td><td>${statusBadge(r.status)}${avisoNF(r.status)}</td></tr>`).join('')
     + '</tbody></table>';
 }
 
@@ -899,16 +925,21 @@ async function carregarValidar(){
     .eq('status','FATURADA').order('atualizado_em');
   if(error){ box.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
   if(!data || !data.length){ box.innerHTML='<div class="empty">Nenhuma nota aguardando validação.</div>'; return; }
-  box.innerHTML = '<table><thead><tr><th>Projeto</th><th>Agência</th><th>Nº PO</th><th class="r">Valor</th><th>Arquivos</th><th>Ação</th></tr></thead><tbody>'
+  box.innerHTML = '<table><thead><tr><th>Projeto</th><th>Agência</th><th>Nº PO</th><th class="r">Valor</th><th>Nota / evidências</th><th>Ação</th></tr></thead><tbody>'
     + data.map(r=>{
-        const nfBtn = r.fatura_url ? `<button class="ghost sm" onclick="abrirArquivo('${r.fatura_url}')">Nota</button>` : '';
-        const evBtn = r.evidencia_url ? `<button class="ghost sm" onclick="abrirArquivo('${r.evidencia_url}')">Evidência</button>` : '';
+        const temArquivo = r.fatura_url || r.evidencia_url;
+        const nfBtn = r.fatura_url ? `<button class="ghost sm" onclick="abrirArquivo('${r.fatura_url}')">Abrir nota</button>` : '<span class="sub">Sem nota</span>';
+        const evBtn = r.evidencia_url ? `<button class="ghost sm" onclick="abrirArquivo('${r.evidencia_url}')">Abrir evidência</button>` : '';
+        const arquivos = `<details ${temArquivo?'open':''}>
+          <summary>Arquivos anexados</summary>
+          <div class="det-body" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${nfBtn}${evBtn}</div>
+        </details>`;
         return `<tr>
           <td>${r.projetos?r.projetos.nome:'—'}</td>
           <td>${r.agencia}</td>
           <td class="num">${r.numero_po||'—'}</td>
           <td class="r num">${BRL(r.valor)}</td>
-          <td>${nfBtn}${evBtn}</td>
+          <td style="min-width:190px">${arquivos}</td>
           <td><button class="sm" onclick="validar('${r.id}')">Validar e concluir</button></td>
         </tr>`;
       }).join('') + '</tbody></table>';
