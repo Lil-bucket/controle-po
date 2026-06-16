@@ -66,6 +66,7 @@
   .s-sol{background:#eef0f3;color:#5a6068} .s-ema{background:#f3ecd9;color:#8a6a2c}
   .s-apr{background:#e9ecf4;color:#4b5685} .s-rej{background:#fdeced;color:#bf0008}
   .s-pog{background:#e7f0ec;color:#3c7a63} .s-fat{background:#fdeadf;color:#b5550c}
+  .s-upd{background:#fbe6c2;color:#8a5a00}
   .s-con{background:#e4f3ea;color:#176b3a} .s-can{background:#eef0f3;color:#8a909c}
   /* cards colapsáveis — clique nítido */
   .card.collapsible > :first-child{cursor:pointer;position:relative}
@@ -102,6 +103,8 @@
   .det-body{padding:9px 11px;border-top:1px solid var(--line)}
   .warn-nf{display:inline-block;font-size:11px;font-weight:700;color:#b5550c;
     background:#ffe9d6;border-radius:20px;padding:1px 8px;margin-left:6px}
+  .warn-box{background:#fbe6c2;border:1px solid #efd29a;color:#7a5200;
+    border-radius:8px;padding:8px 10px;font-size:12.5px;font-weight:600}
   .empty{color:var(--muted);font-size:13px;padding:8px 2px}
   .pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;vertical-align:2px;margin-left:6px;text-transform:uppercase;letter-spacing:.04em}
   .pill-login{background:#fdeced;color:#bf0008}
@@ -1020,6 +1023,7 @@ const STATUS_META = {
   APROVADA:     {l:'Aprovada',     c:'s-apr', i:'✅'},
   REJEITADA:    {l:'Rejeitada',    c:'s-rej', i:'❌'},
   PO_GERADA:    {l:'PO gerada',    c:'s-pog', i:'🧾'},
+  ATUALIZAR_INFO:{l:'Atualizar informações', c:'s-upd', i:'✏️'},
   FATURADA:     {l:'Nota enviada', c:'s-fat', i:'📎'},
   VALIDADA:     {l:'Validada',     c:'s-con', i:'✔️'},
   CONCLUIDA:    {l:'Concluída',    c:'s-con', i:'✔️'},
@@ -1036,38 +1040,49 @@ function avisoNF(s){ return s === 'PO_GERADA' ? ' <span class="warn-nf">⚠ sem 
 async function carregarStatusAg(){
   const box = document.getElementById('listaStatusAg');
   const { data, error } = await sb.from('pos')
-    .select('id,valor,status,numero_po,nf_numero,vencimento,projetos(nome)')
+    .select('id,valor,status,numero_po,nf_numero,vencimento,motivo_rejeicao,projetos(nome)')
     .order('solicitado_em',{ascending:false});   // RLS já filtra para a própria agência
   if(error){ box.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
   if(!data || !data.length){ box.innerHTML='<div class="empty">Você ainda não tem POs.</div>'; return; }
 
+  const formFaturar = r => {
+    const aberto = (r.status==='ATUALIZAR_INFO') ? ' open' : '';
+    const motivo = (r.status==='ATUALIZAR_INFO' && r.motivo_rejeicao)
+      ? `<div class="warn-box">Rejeitado pelo financeiro. Motivo: ${r.motivo_rejeicao}</div>` : '';
+    const titulo = (r.status==='ATUALIZAR_INFO') ? 'Atualizar e reenviar NF' : 'Faturar — enviar NF e evidências';
+    return `<details${aberto}>
+      <summary>${titulo}</summary>
+      <div class="det-body" style="display:flex;flex-direction:column;gap:7px">
+        ${motivo}
+        <div class="field" style="margin:0"><label>Número da NF</label>
+          <input id="nfn_${r.id}" placeholder="Ex.: 12345" oninput="previewVenc('${r.id}')" /></div>
+        <label class="sub" style="margin:0">Nota fiscal (arquivo)</label>
+        <input id="nf_${r.id}" type="file" onchange="previewVenc('${r.id}')" />
+        <label class="sub" style="margin:0">Evidência (arquivo)</label>
+        <input id="ev_${r.id}" type="file" onchange="previewVenc('${r.id}')" />
+        <div id="venc_${r.id}" class="sub" style="margin:2px 0">Preencha número da NF, nota e evidência para ver o vencimento.</div>
+        <button class="sm" onclick="enviarNf('${r.id}')">Enviar faturamento</button>
+      </div></details>`;
+  };
+  const podeCancelar = s => !['CONCLUIDA','CANCELADA','REJEITADA'].includes(s);
   const linha = r => {
     let acao;
-    if(r.status==='PO_GERADA'){
-      acao = `<details>
-        <summary>Faturar — enviar NF e evidências</summary>
-        <div class="det-body" style="display:flex;flex-direction:column;gap:7px">
-          <div class="field" style="margin:0"><label>Número da NF</label>
-            <input id="nfn_${r.id}" placeholder="Ex.: 12345" oninput="previewVenc('${r.id}')" /></div>
-          <label class="sub" style="margin:0">Nota fiscal (arquivo)</label>
-          <input id="nf_${r.id}" type="file" onchange="previewVenc('${r.id}')" />
-          <label class="sub" style="margin:0">Evidência (arquivo)</label>
-          <input id="ev_${r.id}" type="file" onchange="previewVenc('${r.id}')" />
-          <div id="venc_${r.id}" class="sub" style="margin:2px 0">Preencha número da NF, nota e evidência para ver o vencimento.</div>
-          <button class="sm" onclick="enviarNf('${r.id}')">Enviar faturamento</button>
-        </div></details>`;
-    } else if(['FATURADA','VALIDADA','CONCLUIDA'].includes(r.status)){
+    if(r.status==='PO_GERADA' || r.status==='ATUALIZAR_INFO'){ acao = formFaturar(r); }
+    else if(['FATURADA','VALIDADA','CONCLUIDA'].includes(r.status)){
       acao = r.vencimento ? ('Nota '+(r.nf_numero||'')+' enviada · venc. '+fmtData(r.vencimento)) : 'Nota enviada';
     } else if(r.status==='APROVADA'){ acao = 'Aguardando nº da PO'; }
     else { acao = '—'; }
+    const cancelar = podeCancelar(r.status)
+      ? `<button class="ghost sm" onclick="cancelarPO('${r.id}')">Cancelar PO</button>` : '';
     return `<tr><td>${r.projetos?r.projetos.nome:'—'}</td><td class="r num">${BRL(r.valor)}</td>
-      <td class="num">${r.numero_po||'—'}</td><td>${statusBadge(r.status)}${avisoNF(r.status)}</td><td>${acao}</td></tr>`;
+      <td class="num">${r.numero_po||'—'}</td><td>${statusBadge(r.status)}${avisoNF(r.status)}</td>
+      <td>${acao}</td><td>${cancelar}</td></tr>`;
   };
-  const tabela = rows => '<table><thead><tr><th>Projeto</th><th class="r">Valor</th><th>Nº PO</th><th>Status</th><th>Faturamento</th></tr></thead><tbody>'
+  const tabela = rows => '<table><thead><tr><th>Projeto</th><th class="r">Valor</th><th>Nº PO</th><th>Status</th><th>Faturamento</th><th></th></tr></thead><tbody>'
     + rows.map(linha).join('') + '</tbody></table>';
 
   const FINAL = ['APROVADA','FATURADA','VALIDADA','CONCLUIDA'];
-  const ativas = data.filter(r => !FINAL.includes(r.status)); // a fazer / rejeitadas / aguardando NF
+  const ativas = data.filter(r => !FINAL.includes(r.status)); // a fazer / rejeitadas / atualizar / aguardando NF
   const aprov  = data.filter(r =>  FINAL.includes(r.status)); // aprovadas e finalizadas
 
   let html = ativas.length ? tabela(ativas) : '<div class="empty">Nenhuma PO ativa no momento.</div>';
@@ -1084,7 +1099,7 @@ async function carregarStatusMkt(){
   const box = document.getElementById('listaStatusMkt');
   const { data, error } = await sb.from('pos')
     .select('agencia,valor,numero_po,status,projetos(nome)')
-    .in('status',['APROVADA','PO_GERADA','FATURADA']).order('atualizado_em',{ascending:false});
+    .in('status',['APROVADA','PO_GERADA','ATUALIZAR_INFO','FATURADA']).order('atualizado_em',{ascending:false});
   if(error){ box.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
   if(!data || !data.length){ box.innerHTML='<div class="empty">Nenhuma PO aprovada em andamento.</div>'; return; }
   box.innerHTML = '<table><thead><tr><th>Projeto</th><th>Agência</th><th class="r">Valor</th><th>Nº PO</th><th>Status</th></tr></thead><tbody>'
@@ -1097,13 +1112,15 @@ async function carregarStatusMkt(){
 async function carregarStatusAll(){
   const box = document.getElementById('listaStatusAll');
   const { data, error } = await sb.from('pos')
-    .select('agencia,valor,numero_po,status,projetos(nome)')
+    .select('id,agencia,valor,numero_po,status,projetos(nome)')
     .order('atualizado_em',{ascending:false}).limit(200);
   if(error){ box.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
   if(!data || !data.length){ box.innerHTML='<div class="empty">Nenhuma PO ainda.</div>'; return; }
-  box.innerHTML = '<table><thead><tr><th>Projeto</th><th>Agência</th><th class="r">Valor</th><th>Nº PO</th><th>Status</th></tr></thead><tbody>'
+  const podeCancelar = s => !['CONCLUIDA','CANCELADA','REJEITADA'].includes(s);
+  box.innerHTML = '<table><thead><tr><th>Projeto</th><th>Agência</th><th class="r">Valor</th><th>Nº PO</th><th>Status</th><th></th></tr></thead><tbody>'
     + data.map(r=>`<tr><td>${r.projetos?r.projetos.nome:'—'}</td><td>${r.agencia}</td>
-        <td class="r num">${BRL(r.valor)}</td><td class="num">${r.numero_po||'—'}</td><td>${statusBadge(r.status)}${avisoNF(r.status)}</td></tr>`).join('')
+        <td class="r num">${BRL(r.valor)}</td><td class="num">${r.numero_po||'—'}</td><td>${statusBadge(r.status)}${avisoNF(r.status)}</td>
+        <td>${podeCancelar(r.status)?`<button class="ghost sm" onclick="cancelarPO('${r.id}')">Cancelar</button>`:''}</td></tr>`).join('')
     + '</tbody></table>';
 }
 
@@ -1175,7 +1192,13 @@ async function carregarValidar(){
           <td class="num">${r.vencimento?fmtData(r.vencimento):'—'}</td>
           <td class="r num">${BRL(r.valor)}</td>
           <td style="min-width:190px">${arquivos}</td>
-          <td><button class="sm" onclick="validar('${r.id}')">Validar e concluir</button></td>
+          <td><button class="sm" onclick="validar('${r.id}')">Validar e concluir</button>
+            <details style="margin-top:6px">
+              <summary>Rejeitar (devolver à agência)</summary>
+              <div class="det-body" style="display:flex;flex-direction:column;gap:6px">
+                <textarea id="mot_${r.id}" rows="2" placeholder="Descreva o que precisa ser corrigido" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;font-family:var(--sans);font-size:13px"></textarea>
+                <button class="ghost sm" onclick="rejeitarFaturamento('${r.id}')">Rejeitar e devolver</button>
+              </div></details></td>
         </tr>`;
       }).join('') + '</tbody></table>';
 }
@@ -1188,6 +1211,21 @@ async function validar(id){
   const { error } = await sb.rpc('validar_po', { p_po: id });
   if(error){ alert(error.message); return; }
   carregarValidar(); refrescarSaldo();
+}
+async function rejeitarFaturamento(id){
+  const motivo = (document.getElementById('mot_'+id).value||'').trim();
+  if(!motivo){ alert('Descreva o motivo da rejeição.'); return; }
+  const { error } = await sb.rpc('rejeitar_faturamento', { p_po: id, p_motivo: motivo });
+  if(error){ alert(error.message); return; }
+  carregarValidar(); refrescarSaldo();
+}
+async function cancelarPO(id){
+  if(!confirm('Cancelar esta PO? O valor volta para o saldo do projeto.')) return;
+  const { error } = await sb.rpc('cancelar_po', { p_po: id });
+  if(error){ alert(error.message); return; }
+  if(PAPEL==='agencia') carregarStatusAg();
+  if(PAPEL==='admin') carregarStatusAll();
+  refrescarSaldo();
 }
 
 // ----- Notificações -----
