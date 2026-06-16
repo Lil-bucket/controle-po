@@ -70,6 +70,11 @@
   .card.collapsed.collapsible > :first-child::after{content:'▸ expandir'}
   .card.collapsible > :first-child:hover::after{background:var(--teal);color:#fff;border-color:var(--teal)}
   .card.collapsed > :not(:first-child){display:none}
+  /* destaque de novidade no bloco de status */
+  .card{position:relative}
+  .card.has-update{box-shadow:0 0 0 2px var(--amber)}
+  .card.has-update::before{content:'● novidade';position:absolute;top:-10px;left:14px;
+    background:var(--amber);color:#fff;font-size:10px;font-weight:700;padding:2px 10px;border-radius:20px;letter-spacing:.03em}
   /* grupo colapsável dentro de um card */
   .grp-head{display:flex;align-items:center;cursor:pointer;font-weight:600;font-size:13px;
     color:var(--teal-d);margin:10px 0 4px;padding:8px 11px;border:1px solid var(--line);
@@ -177,7 +182,7 @@
 
     <!-- Marketing: criar projeto -->
     <div class="card" id="cardMkt">
-      <h2>Marketing — criar projeto</h2>
+      <h2 id="cardMktTitle">Marketing — criar projeto</h2>
       <div class="field"><label>Nome do projeto</label><input id="pNome" placeholder="Ex.: Gamescom Brasil 2026" /></div>
       <div class="field"><label>Agência responsável</label><select id="pAgencia" onchange="atualizarAtividades()"></select></div>
       <div class="row">
@@ -190,7 +195,8 @@
       <div id="mesesBox"></div>
       <button class="ghost sm" onclick="addMesRow()" style="margin-top:4px">+ adicionar mês</button>
       <div class="sub" style="margin:12px 0">Total do projeto: <b class="num" id="totalProjeto">R$ 0,00</b></div>
-      <button onclick="criarProjeto()">Criar projeto</button>
+      <button id="btnProj" onclick="criarProjeto()">Criar projeto</button>
+      <button id="btnCancelProj" class="ghost" style="display:none" onclick="cancelarEdicao()">Cancelar edição</button>
       <div id="mktMsg" class="msg"></div>
     </div>
 
@@ -278,6 +284,8 @@ let PAPEL = '';
 const PAPEL_NOME = {pendente:'Pendente', agencia:'Agência', marketing:'Marketing', financeiro:'Financial', admin:'Admin'};
 let MINHA_AGENCIA = '';
 let MEUS_PROJ_IDS = [];
+let PROJ_NOMES = {};
+let EDIT_PROJ = null;
 
 // === PARA PUBLICAR: cole sua URL e a anon key entre as aspas abaixo. ===
 // A anon key pode ficar pública com segurança PORQUE o RLS está ligado.
@@ -489,8 +497,7 @@ async function abrirApp(session){
     carregarStatusAll();
   }
 
-  carregarNotificacoes();
-  assinarNotificacoes();
+  assinarMudancas();
   carregarProjetos();
 }
 
@@ -541,20 +548,18 @@ function layoutPorPapel(papel){
   else if(papel === 'agencia'){
     setCard('cardAg', true);                 // solicitar PO
     setCard('cardStatusAg', true);           // status (aprovadas colapsadas dentro)
-    setCard('cardNotif', true, true);        // avisos (pagamento etc.) — colapsado
     setCard('cardSaldo', true);
-    ordenar(['cardUser','cardAg','cardStatusAg','cardNotif','cardSaldo']);
+    ordenar(['cardUser','cardAg','cardStatusAg','cardSaldo']);
   }
   else if(papel === 'admin'){
     setCard('cardSaldo', true);
     setCard('cardStatusAll', true);          // status de todas as POs
-    setCard('cardNotif', true, true);
     setCard('cardPessoas', true, true);      // aprovar cadastros — colapsado
     setCard('cardMkt', true, true);
     setCard('cardAprovar', true, true);
     setCard('cardGerar', true, true);
     setCard('cardValidar', true, true);
-    ordenar(['cardUser','cardSaldo','cardStatusAll','cardNotif','cardPessoas',
+    ordenar(['cardUser','cardSaldo','cardStatusAll','cardPessoas',
       'cardMkt','cardAprovar','cardGerar','cardValidar']);
   }
 }
@@ -572,6 +577,7 @@ async function carregarProjetos(){
     lista = lista.filter(p => p.agencia === MINHA_AGENCIA);
   }
   MEUS_PROJ_IDS = lista.map(p => p.id);
+  PROJ_NOMES = {}; (data||[]).forEach(p => PROJ_NOMES[p.id] = p.nome);
   const opts = lista.map(p=>`<option value="${p.id}">${p.nome}</option>`).join('');
   document.getElementById('sProj').innerHTML = '<option value="">Selecione o projeto</option>' + opts;
   document.getElementById('vProj').innerHTML = '<option value="todos">Todos os projetos</option>' + opts;
@@ -671,23 +677,70 @@ async function criarProjeto(){
 
   const { data: cls } = await sb.rpc('classificar', { p_d:cat, p_e:ativ, p_f:projTag });
   const c = (cls && cls[0]) || {};
+  const campos = { nome, agencia, product_category:cat, activity:ativ, projeto_tag:projTag,
+    cc:c.cc, account:c.account, account_desc:c.descricao };
 
-  const { data: proj, error: e1 } = await sb.from('projetos').insert({
-    nome, agencia, product_category:cat, activity:ativ, projeto_tag:projTag,
-    cc:c.cc, account:c.account, account_desc:c.descricao, criado_por:'portal'
-  }).select().single();
-  if(e1){ show('mktMsg','err', e1.message); return; }
+  let projId = EDIT_PROJ;
+  if(EDIT_PROJ){
+    const { error: e1 } = await sb.from('projetos').update(campos).eq('id', EDIT_PROJ);
+    if(e1){ show('mktMsg','err', e1.message); return; }
+  } else {
+    campos.criado_por = 'portal';
+    const { data: proj, error: e1 } = await sb.from('projetos').insert(campos).select().single();
+    if(e1){ show('mktMsg','err', e1.message); return; }
+    projId = proj.id;
+  }
 
-  const tetosIns = rows.map(r=>({ projeto_id: proj.id, competencia: r.competencia, teto: r.teto, definido_por:'portal' }));
-  const { error: e2 } = await sb.from('tetos').insert(tetosIns);
-  if(e2){ show('mktMsg','err','Projeto criado, mas falhou a distribuição: '+e2.message); return; }
+  const tetosIns = rows.map(r=>({ projeto_id: projId, competencia: r.competencia, teto: r.teto, definido_por:'portal' }));
+  const { error: e2 } = await sb.from('tetos').upsert(tetosIns, { onConflict: 'projeto_id,competencia' });
+  if(e2){ show('mktMsg','err','Projeto salvo, mas falhou a distribuição: '+e2.message); return; }
 
   const total = rows.reduce((s,r)=>s+r.teto, 0);
-  show('mktMsg','ok',`Projeto "${nome}" criado para ${agencia}: ${rows.length} mês(es), total ${BRL(total)}.`);
+  show('mktMsg','ok', (EDIT_PROJ?`Projeto "${nome}" atualizado`:`Projeto "${nome}" criado`)+`: ${rows.length} mês(es), total ${BRL(total)}.`);
+  cancelarEdicao();
+  carregarProjetos();
+}
+
+async function editarProjeto(id){
+  const { data: proj, error } = await sb.from('projetos')
+    .select('nome,agencia,product_category,activity,projeto_tag').eq('id', id).single();
+  if(error){ alert(error.message); return; }
+  const { data: tetos } = await sb.from('tetos').select('competencia,teto').eq('projeto_id', id).order('competencia');
+  const card = document.getElementById('cardMkt');
+  if(card){ card.style.display=''; card.classList.remove('collapsed'); }
+  carregarAgencias(); preencherListas();
+  document.getElementById('pNome').value = proj.nome || '';
+  document.getElementById('pAgencia').value = proj.agencia || '';
+  atualizarAtividades();
+  document.getElementById('pCat').value = proj.product_category || '';
+  document.getElementById('pAtiv').value = proj.activity || '';
+  document.getElementById('pProjTag').value = proj.projeto_tag || '';
+  previewClassificacao();
+  const box = document.getElementById('mesesBox'); box.innerHTML='';
+  (tetos||[]).forEach(t=>{
+    addMesRow();
+    const div = box.lastElementChild;
+    const mesEl = div.querySelector('input[type="month"]');
+    const valEl = div.querySelector('input[id^="val_"]');
+    if(mesEl) mesEl.value = String(t.competencia).slice(0,7);
+    if(valEl) valEl.value = BRL(Number(t.teto));
+  });
+  if(!(tetos||[]).length) addMesRow();
+  atualizarTotalProjeto();
+  EDIT_PROJ = id;
+  document.getElementById('cardMktTitle').textContent = 'Editar projeto';
+  document.getElementById('btnProj').textContent = 'Salvar alterações';
+  document.getElementById('btnCancelProj').style.display = '';
+  if(card) card.scrollIntoView({behavior:'smooth', block:'start'});
+}
+function cancelarEdicao(){
+  EDIT_PROJ = null;
   document.getElementById('pNome').value='';
   document.getElementById('previewClass').innerHTML='';
   document.getElementById('mesesBox').innerHTML=''; addMesRow();
-  carregarProjetos();
+  document.getElementById('cardMktTitle').textContent = 'Marketing — criar projeto';
+  document.getElementById('btnProj').textContent = 'Criar projeto';
+  document.getElementById('btnCancelProj').style.display = 'none';
 }
 
 async function solicitar(){
@@ -758,6 +811,7 @@ async function carregar(){
 function desenharOverview(rows){
   const ov = document.getElementById('overview');
   if(!rows.length){ ov.innerHTML='<div class="empty">Nenhum projeto com teto neste mês.</div>'; return; }
+  const podeEditar = (PAPEL === 'marketing' || PAPEL === 'admin');
   let tt=0,tc=0,tp=0,ts=0;
   const body = rows.map(r=>{
     const teto=Number(r.teto), saldo=Number(r.saldo);
@@ -767,18 +821,46 @@ function desenharOverview(rows){
     const barra = `<div style="display:flex;align-items:center;gap:7px">
         <div class="bar-mini"><span style="width:${pct}%;background:${cor}"></span></div>
         <span class="num" style="font-size:11.5px;min-width:34px;text-align:right">${pct}%</span></div>`;
+    const acao = podeEditar ? `<td><button class="ghost sm" onclick="editarProjeto('${r.projeto_id}')">Editar</button></td>` : '';
     return `<tr>
-      <td>${r.projeto}</td>
+      <td><a href="#" onclick="mostrarPOsProjeto('${r.projeto_id}');return false" title="ver todas as POs">${r.projeto}</a></td>
       <td class="r num">${BRL(teto)}</td>
       <td class="r num">${BRL(r.comprometido)}</td>
       <td class="r num">${BRL(r.pendente)}</td>
       <td class="r num">${BRL(saldo)}</td>
-      <td style="min-width:120px">${barra}</td></tr>`;
+      <td style="min-width:120px">${barra}</td>${acao}</tr>`;
   }).join('');
   const pctTot = tt>0 ? Math.min(100, Math.round((tt - ts)/tt*100)) : 0;
-  ov.innerHTML = `<table><thead><tr><th>Projeto</th><th class="r">Teto</th><th class="r">Comprometido</th><th class="r">Pendente</th><th class="r">Saldo</th><th>Uso</th></tr></thead><tbody>${body}
-    <tr style="font-weight:700"><td>Total</td><td class="r num">${BRL(tt)}</td><td class="r num">${BRL(tc)}</td><td class="r num">${BRL(tp)}</td><td class="r num">${BRL(ts)}</td><td class="num" style="font-size:11.5px">${pctTot}% usado</td></tr>
+  const thAcao = podeEditar ? '<th></th>' : '';
+  ov.innerHTML = `<div class="sub" style="margin-bottom:6px">Clique no nome do projeto para ver todas as POs relacionadas.</div>
+    <table><thead><tr><th>Projeto</th><th class="r">Teto</th><th class="r">Comprometido</th><th class="r">Pendente</th><th class="r">Saldo</th><th>Uso</th>${thAcao}</tr></thead><tbody>${body}
+    <tr style="font-weight:700"><td>Total</td><td class="r num">${BRL(tt)}</td><td class="r num">${BRL(tc)}</td><td class="r num">${BRL(tp)}</td><td class="r num">${BRL(ts)}</td><td class="num" style="font-size:11.5px">${pctTot}% usado</td>${podeEditar?'<td></td>':''}</tr>
     </tbody></table>`;
+}
+
+// Lista de todas as POs de um projeto (todos os meses e status)
+async function mostrarPOsProjeto(id){
+  const lista = document.getElementById('lista');
+  const nome = PROJ_NOMES[id] || 'projeto';
+  const { data, error } = await sb.from('pos')
+    .select('competencia,agencia,descricao,valor,numero_po,nf_numero,vencimento,status')
+    .eq('projeto_id', id).order('competencia',{ascending:false}).order('solicitado_em',{ascending:false});
+  if(error){ lista.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
+  const fmtMes = c => { const d=new Date(c+'T00:00:00'); return d.toLocaleDateString('pt-BR',{month:'2-digit',year:'numeric'}); };
+  const body = (data||[]).map(r=>`<tr>
+      <td>${fmtMes(r.competencia)}</td>
+      <td>${r.agencia}</td>
+      <td>${r.descricao||'—'}</td>
+      <td class="num">${r.numero_po||'—'}</td>
+      <td class="num">${r.nf_numero||'—'}</td>
+      <td class="num">${r.vencimento?fmtData(r.vencimento):'—'}</td>
+      <td class="r num">${BRL(r.valor)}</td>
+      <td>${statusBadge(r.status)}${avisoNF(r.status)}</td></tr>`).join('');
+  lista.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0">
+      <b>POs do projeto: ${nome}</b><button class="ghost sm" onclick="document.getElementById('lista').innerHTML=''">Fechar</button></div>`
+    + (data && data.length
+        ? `<table><thead><tr><th>Mês</th><th>Agência</th><th>Descrição</th><th>Nº PO</th><th>Nº NF</th><th>Vencimento</th><th class="r">Valor</th><th>Status</th></tr></thead><tbody>${body}</tbody></table>`
+        : '<div class="empty">Este projeto ainda não tem POs.</div>');
 }
 
 function desenharMeter(s){
@@ -888,7 +970,7 @@ function avisoNF(s){ return s === 'PO_GERADA' ? ' <span class="warn-nf">⚠ sem 
 async function carregarStatusAg(){
   const box = document.getElementById('listaStatusAg');
   const { data, error } = await sb.from('pos')
-    .select('id,valor,status,numero_po,projetos(nome)')
+    .select('id,valor,status,numero_po,nf_numero,vencimento,projetos(nome)')
     .order('solicitado_em',{ascending:false});   // RLS já filtra para a própria agência
   if(error){ box.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
   if(!data || !data.length){ box.innerHTML='<div class="empty">Você ainda não tem POs.</div>'; return; }
@@ -898,13 +980,19 @@ async function carregarStatusAg(){
     if(r.status==='PO_GERADA'){
       acao = `<details>
         <summary>Faturar — enviar NF e evidências</summary>
-        <div class="det-body" style="display:flex;flex-direction:column;gap:6px">
-          <label class="sub" style="margin:0">Nota fiscal</label><input id="nf_${r.id}" type="file" />
-          <label class="sub" style="margin:0">Evidência (opcional)</label><input id="ev_${r.id}" type="file" />
-          <button class="sm" onclick="enviarNf('${r.id}')">Enviar</button>
+        <div class="det-body" style="display:flex;flex-direction:column;gap:7px">
+          <div class="field" style="margin:0"><label>Número da NF</label>
+            <input id="nfn_${r.id}" placeholder="Ex.: 12345" oninput="previewVenc('${r.id}')" /></div>
+          <label class="sub" style="margin:0">Nota fiscal (arquivo)</label>
+          <input id="nf_${r.id}" type="file" onchange="previewVenc('${r.id}')" />
+          <label class="sub" style="margin:0">Evidência (arquivo)</label>
+          <input id="ev_${r.id}" type="file" onchange="previewVenc('${r.id}')" />
+          <div id="venc_${r.id}" class="sub" style="margin:2px 0">Preencha número da NF, nota e evidência para ver o vencimento.</div>
+          <button class="sm" onclick="enviarNf('${r.id}')">Enviar faturamento</button>
         </div></details>`;
-    } else if(['FATURADA','VALIDADA','CONCLUIDA'].includes(r.status)){ acao = 'Nota enviada'; }
-    else if(r.status==='APROVADA'){ acao = 'Aguardando nº da PO'; }
+    } else if(['FATURADA','VALIDADA','CONCLUIDA'].includes(r.status)){
+      acao = r.vencimento ? ('Nota '+(r.nf_numero||'')+' enviada · venc. '+fmtData(r.vencimento)) : 'Nota enviada';
+    } else if(r.status==='APROVADA'){ acao = 'Aguardando nº da PO'; }
     else { acao = '—'; }
     return `<tr><td>${r.projetos?r.projetos.nome:'—'}</td><td class="r num">${BRL(r.valor)}</td>
       <td class="num">${r.numero_po||'—'}</td><td>${statusBadge(r.status)}${avisoNF(r.status)}</td><td>${acao}</td></tr>`;
@@ -953,36 +1041,58 @@ async function carregarStatusAll(){
     + '</tbody></table>';
 }
 
+// Regra de vencimento por dia de inserção
+function calcVenc(d){
+  const day=d.getDate(), y=d.getFullYear(), m=d.getMonth();
+  if(day<=12) return new Date(y, m, 25);
+  if(day<=18) return new Date(y, m+1, 5);
+  if(day<=25) return new Date(y, m+1, 15);
+  return new Date(y, m+1, 25);
+}
+function fmtData(s){ const d = (s instanceof Date) ? s : new Date(s+'T00:00:00'); return d.toLocaleDateString('pt-BR'); }
+function previewVenc(poId){
+  const num = (document.getElementById('nfn_'+poId)||{}).value || '';
+  const nf  = (document.getElementById('nf_'+poId)||{}).files;
+  const ev  = (document.getElementById('ev_'+poId)||{}).files;
+  const el  = document.getElementById('venc_'+poId);
+  if(!el) return;
+  const ok = num.trim() && nf && nf[0] && ev && ev[0];
+  if(ok){
+    el.innerHTML = '<b style="color:var(--green)">✓ Vencimento previsto: '+fmtData(calcVenc(new Date()))+'</b> — pronto para enviar.';
+  } else {
+    el.textContent = 'Preencha número da NF, nota e evidência para ver o vencimento.';
+  }
+}
+
 async function enviarNf(poId){
+  const num = (document.getElementById('nfn_'+poId).value||'').trim();
   const nf = document.getElementById('nf_'+poId).files[0];
   const ev = document.getElementById('ev_'+poId).files[0];
-  if(!nf){ alert('Anexe a nota fiscal.'); return; }
+  if(!num || !nf || !ev){ alert('Preencha os três campos: número da NF, nota fiscal e evidência.'); return; }
   const seguro = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'')
                        .replace(/[^a-zA-Z0-9._-]/g,'_').replace(/_+/g,'_');
   const nfPath = poId+'/nf_'+Date.now()+'_'+seguro(nf.name);
   const up1 = await sb.storage.from('evidencias').upload(nfPath, nf);
   if(up1.error){ alert('Falha no upload da NF: '+up1.error.message); return; }
-  let evPath = null;
-  if(ev){
-    evPath = poId+'/ev_'+Date.now()+'_'+seguro(ev.name);
-    const up2 = await sb.storage.from('evidencias').upload(evPath, ev);
-    if(up2.error){ alert('Falha no upload da evidência: '+up2.error.message); return; }
-  }
-  const { error } = await sb.rpc('faturar_po', { p_po: poId, p_fatura: nfPath, p_evidencia: evPath });
+  const evPath = poId+'/ev_'+Date.now()+'_'+seguro(ev.name);
+  const up2 = await sb.storage.from('evidencias').upload(evPath, ev);
+  if(up2.error){ alert('Falha no upload da evidência: '+up2.error.message); return; }
+  const { data, error } = await sb.rpc('faturar_po', { p_po: poId, p_fatura: nfPath, p_evidencia: evPath, p_nf_numero: num });
   if(error){ alert(error.message); return; }
+  const venc = (data && data.vencimento) ? fmtData(data.vencimento) : '';
   carregarStatusAg();
-  carregarNotificacoes();
+  if(venc) alert('Faturamento enviado. Vencimento da NF: '+venc+'.');
 }
 
 // ----- Administrativo: validar notas (abrir arquivos + concluir) -----
 async function carregarValidar(){
   const box = document.getElementById('listaValidar');
   const { data, error } = await sb.from('pos')
-    .select('id,agencia,valor,numero_po,fatura_url,evidencia_url,projetos(nome)')
-    .eq('status','FATURADA').order('atualizado_em');
+    .select('id,agencia,valor,numero_po,nf_numero,vencimento,fatura_url,evidencia_url,projetos(nome)')
+    .eq('status','FATURADA').order('vencimento');
   if(error){ box.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
   if(!data || !data.length){ box.innerHTML='<div class="empty">Nenhuma nota aguardando validação.</div>'; return; }
-  box.innerHTML = '<table><thead><tr><th>Projeto</th><th>Agência</th><th>Nº PO</th><th class="r">Valor</th><th>Nota / evidências</th><th>Ação</th></tr></thead><tbody>'
+  box.innerHTML = '<table><thead><tr><th>Projeto</th><th>Agência</th><th>Nº PO</th><th>Nº NF</th><th>Vencimento</th><th class="r">Valor</th><th>Arquivos</th><th>Ação</th></tr></thead><tbody>'
     + data.map(r=>{
         const temArquivo = r.fatura_url || r.evidencia_url;
         const nfBtn = r.fatura_url ? `<button class="ghost sm" onclick="abrirArquivo('${r.fatura_url}')">Abrir nota</button>` : '<span class="sub">Sem nota</span>';
@@ -995,6 +1105,8 @@ async function carregarValidar(){
           <td>${r.projetos?r.projetos.nome:'—'}</td>
           <td>${r.agencia}</td>
           <td class="num">${r.numero_po||'—'}</td>
+          <td class="num">${r.nf_numero||'—'}</td>
+          <td class="num">${r.vencimento?fmtData(r.vencimento):'—'}</td>
           <td class="r num">${BRL(r.valor)}</td>
           <td style="min-width:190px">${arquivos}</td>
           <td><button class="sm" onclick="validar('${r.id}')">Validar e concluir</button></td>
@@ -1009,7 +1121,7 @@ async function abrirArquivo(path){
 async function validar(id){
   const { error } = await sb.rpc('validar_po', { p_po: id });
   if(error){ alert(error.message); return; }
-  carregarValidar(); refrescarSaldo(); carregarNotificacoes();
+  carregarValidar(); refrescarSaldo();
 }
 
 // ----- Notificações -----
@@ -1036,11 +1148,24 @@ function refrescarFilas(){
   else if(PAPEL==='admin'){ carregarPendentes(); carregarAprovadas(); carregarValidar(); carregarStatusAll(); }
   refrescarSaldo();
 }
-function assinarNotificacoes(){
+const DESTAQUE_CARDS = {
+  marketing:['cardAprovar','cardStatusMkt'],
+  financeiro:['cardGerar','cardValidar'],
+  agencia:['cardStatusAg'],
+  admin:['cardStatusAll']
+};
+function destacarMudancas(){
+  (DESTAQUE_CARDS[PAPEL]||[]).forEach(id=>{
+    const c=document.getElementById(id); if(!c) return;
+    c.classList.add('has-update');
+    if(!c._clrArmed){ c._clrArmed=true; c.addEventListener('click', ()=>c.classList.remove('has-update')); }
+  });
+}
+function assinarMudancas(){
   try{
-    sb.channel('notif')
+    sb.channel('mud')
       .on('postgres_changes', { event:'INSERT', schema:'public', table:'notificacoes' },
-          () => { carregarNotificacoes(); refrescarFilas(); })
+          () => { refrescarFilas(); destacarMudancas(); })
       .subscribe();
   }catch(_){}
 }
