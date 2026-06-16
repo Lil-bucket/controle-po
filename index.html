@@ -56,6 +56,20 @@
   .tag{font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;font-family:var(--mono)}
   .t-pend{background:#fdf2dd;color:#9a6a07} .t-comp{background:#e4f3ea;color:#176b3a}
   .t-rej{background:#fdecea;color:#a02617}
+  /* selos de status por estado */
+  .s-sol{background:#eef1f6;color:#475067} .s-ema{background:#fdf2dd;color:#9a6a07}
+  .s-apr{background:#e2ecfb;color:#1d5fb0} .s-rej{background:#fdecea;color:#a02617}
+  .s-pog{background:#ece3fb;color:#6b3fa0} .s-fat{background:#ffe9d6;color:#b5550c}
+  .s-con{background:#e4f3ea;color:#176b3a} .s-can{background:#eef1f6;color:#8a909c}
+  /* cards colapsáveis */
+  .card.collapsible > :first-child{cursor:pointer}
+  .card.collapsible > :first-child::after{content:'▾';float:right;color:var(--muted);font-weight:400;font-size:13px}
+  .card.collapsed.collapsible > :first-child::after{content:'▸'}
+  .card.collapsed > :not(:first-child){display:none}
+  .grp-head{display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;font-size:13px;
+    color:var(--teal-d);margin:10px 0 4px;user-select:none}
+  .grp-head::before{content:'▸';color:var(--muted)} .grp-open .grp-head::before{content:'▾'}
+  .grp-body{display:none} .grp-open .grp-body{display:block}
   .empty{color:var(--muted);font-size:13px;padding:8px 2px}
   .pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;vertical-align:2px;margin-left:6px;text-transform:uppercase;letter-spacing:.04em}
   .pill-login{background:#d9f2f7;color:#0a5560}
@@ -69,7 +83,7 @@
   <header>
     <h1>Controle de PO</h1>
     <div class="sub">Pedidos de ordem de pagamento com teto mensal por projeto</div>
-    <div class="banner">Acesso por perfil: agência vê só as próprias POs; marketing cria projetos e aprova; admin gera PO, valida notas e gerencia usuários.</div>
+    <div class="banner">Acesso por perfil: agência solicita PO e sobe NF; marketing cria projetos e aprova; financial gera PO e valida notas; admin vê tudo, aprova cadastros e gerencia usuários.</div>
   </header>
 
   <!-- Conexão -->
@@ -107,7 +121,7 @@
   <!-- App -->
   <div id="app" class="hidden">
 
-    <div class="card" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;gap:12px">
+    <div class="card" id="cardUser" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;gap:12px">
       <span class="sub" id="whoami"></span>
       <button class="ghost" onclick="sair()">Sair</button>
     </div>
@@ -115,7 +129,7 @@
     <!-- Acesso pendente -->
     <div class="card" id="cardPending">
       <h2>Acesso aguardando liberação</h2>
-      <div class="sub">Sua conta foi criada. Peça ao marketing para definir seu papel no sistema.</div>
+      <div class="sub">Sua conta foi criada. Peça ao admin para liberar seu acesso e definir seu papel.</div>
     </div>
 
     <!-- Notificações -->
@@ -165,10 +179,22 @@
       <div id="listaStatusAg"></div>
     </div>
 
-    <!-- Marketing: aprovar pedidos -->
+    <!-- Marketing: aprovar pedidos (notificações com botões) -->
     <div class="card" id="cardAprovar">
-      <h2>Marketing — pedidos aguardando aprovação</h2>
+      <h2>Notificações — pedidos aguardando aprovação</h2>
       <div id="listaPend"></div>
+    </div>
+
+    <!-- Marketing: status das POs aprovadas ainda não concluídas -->
+    <div class="card" id="cardStatusMkt">
+      <h2>POs aprovadas em andamento</h2>
+      <div id="listaStatusMkt"></div>
+    </div>
+
+    <!-- Admin: status geral de todas as POs -->
+    <div class="card" id="cardStatusAll">
+      <h2>Status de todas as POs</h2>
+      <div id="listaStatusAll"></div>
     </div>
 
     <!-- Marketing: pessoas e papéis -->
@@ -215,6 +241,7 @@
 <script>
 let sb = null;
 let PAPEL = '';
+const PAPEL_NOME = {pendente:'Pendente', agencia:'Agência', marketing:'Marketing', financeiro:'Financial', admin:'Admin'};
 let MINHA_AGENCIA = '';
 let MEUS_PROJ_IDS = [];
 
@@ -347,25 +374,18 @@ async function abrirApp(session){
   // lê o papel pela função papel_atual() — não é bloqueada por RLS (security definer)
   const { data: papel } = await sb.rpc('papel_atual');
   document.getElementById('whoami').textContent =
-    'Conectado como ' + session.user.email + ' · ' + (papel || '(sem papel definido)');
-  // mostra cada seção conforme o papel
+    'Conectado como ' + session.user.email + ' · ' + (PAPEL_NOME[papel] || papel || '(sem papel definido)');
+  // mostra/ordena as seções conforme o papel
   PAPEL = papel || '';
-  const valido = ['marketing','agencia','admin'].includes(papel);
-  const ehAdmin = (papel === 'admin');
-  const ehProjeto = (papel === 'marketing' || papel === 'admin'); // cria projeto e aprova PO
+  const valido = ['marketing','agencia','financeiro','admin'].includes(papel);
   document.getElementById('cardPending').style.display = valido ? 'none' : '';
-  document.getElementById('cardNotif').style.display = valido ? '' : 'none';
-  document.getElementById('cardSaldo').style.display = valido ? '' : 'none';
-  document.getElementById('cardMkt').style.display = ehProjeto ? '' : 'none';
-  document.getElementById('cardPessoas').style.display = ehAdmin ? '' : 'none';
-  document.getElementById('cardAprovar').style.display = ehProjeto ? '' : 'none';
-  document.getElementById('cardGerar').style.display   = ehAdmin ? '' : 'none';
-  document.getElementById('cardValidar').style.display = ehAdmin ? '' : 'none';
-  document.getElementById('cardAg').style.display  = (papel === 'agencia') ? '' : 'none';
-  document.getElementById('cardStatusAg').style.display = (papel === 'agencia') ? '' : 'none';
-  if(!valido){ return; }
-  if(ehProjeto){ carregarPendentes(); carregarAgencias(); preencherListas(); document.getElementById('mesesBox').innerHTML=''; addMesRow(); }
-  if(ehAdmin){ carregarPessoas(); carregarAprovadas(); carregarValidar(); }
+  if(!valido){
+    ['cardNotif','cardSaldo','cardMkt','cardPessoas','cardAprovar','cardStatusMkt',
+     'cardStatusAll','cardGerar','cardValidar','cardAg','cardStatusAg']
+      .forEach(id=>{ const c=document.getElementById(id); if(c) c.style.display='none'; });
+    return;
+  }
+
   if(papel === 'agencia'){
     const { data: minhaAg } = await sb.rpc('agencia_atual');
     MINHA_AGENCIA = minhaAg || '';
@@ -373,11 +393,92 @@ async function abrirApp(session){
     elAg.value = minhaAg || '';
     elAg.readOnly = true;
     elAg.style.background = '#f3f4f6';
-    carregarStatusAg();
   }
+
+  layoutPorPapel(papel);
+
+  if(papel === 'marketing'){
+    carregarPendentes(); carregarAgencias(); preencherListas();
+    document.getElementById('mesesBox').innerHTML=''; addMesRow();
+    carregarStatusMkt();
+  }
+  if(papel === 'financeiro'){ carregarAprovadas(); carregarValidar(); }
+  if(papel === 'agencia'){ carregarStatusAg(); }
+  if(papel === 'admin'){
+    carregarPessoas(); carregarAprovadas(); carregarValidar();
+    carregarPendentes(); carregarAgencias(); preencherListas();
+    document.getElementById('mesesBox').innerHTML=''; addMesRow();
+    carregarStatusAll();
+  }
+
   carregarNotificacoes();
   assinarNotificacoes();
   carregarProjetos();
+}
+
+// Define quais blocos aparecem, em que ordem, e quais começam colapsados.
+// terceiro valor: undefined = sempre aberto; true = colapsável e fechado; false = colapsável e aberto.
+const _toggleArmed = new WeakSet();
+function setCard(id, show, collapsed){
+  const c = document.getElementById(id);
+  if(!c) return;
+  c.style.display = show ? '' : 'none';
+  c.classList.remove('collapsible','collapsed');
+  if(show && collapsed !== undefined){
+    c.classList.add('collapsible');
+    if(collapsed) c.classList.add('collapsed');
+    if(!_toggleArmed.has(c)){
+      _toggleArmed.add(c);
+      const head = c.firstElementChild;
+      head.addEventListener('click', e=>{
+        const t = e.target.tagName;
+        if(t==='BUTTON'||t==='INPUT'||t==='SELECT'||t==='A'||t==='OPTION') return;
+        c.classList.toggle('collapsed');
+      });
+    }
+  }
+}
+function ordenar(ids){
+  const app = document.getElementById('app');
+  ids.forEach(id=>{ const c=document.getElementById(id); if(c) app.appendChild(c); });
+}
+function layoutPorPapel(papel){
+  const todos = ['cardNotif','cardSaldo','cardMkt','cardPessoas','cardAprovar',
+    'cardStatusMkt','cardStatusAll','cardGerar','cardValidar','cardAg','cardStatusAg'];
+  todos.forEach(id=>{ const c=document.getElementById(id); if(c){ c.style.display='none'; c.classList.remove('collapsible','collapsed'); }});
+
+  if(papel === 'marketing'){
+    setCard('cardAprovar', true);            // notificações com botões aprovar/rejeitar
+    setCard('cardMkt', true, true);          // abrir projetos — colapsado
+    setCard('cardStatusMkt', true);          // POs aprovadas em andamento
+    setCard('cardSaldo', true);
+    ordenar(['cardUser','cardAprovar','cardMkt','cardStatusMkt','cardSaldo']);
+  }
+  else if(papel === 'financeiro'){
+    setCard('cardGerar', true);              // POs a gerar
+    setCard('cardValidar', true);            // notas a validar
+    setCard('cardSaldo', true);
+    ordenar(['cardUser','cardGerar','cardValidar','cardSaldo']);
+  }
+  else if(papel === 'agencia'){
+    setCard('cardAg', true);                 // solicitar PO
+    setCard('cardStatusAg', true);           // status (aprovadas colapsadas dentro)
+    setCard('cardNotif', true, true);        // avisos (pagamento etc.) — colapsado
+    setCard('cardSaldo', true);
+    ordenar(['cardUser','cardAg','cardStatusAg','cardNotif','cardSaldo']);
+  }
+  else if(papel === 'admin'){
+    setCard('cardSaldo', true);
+    setCard('cardStatusAll', true);          // status de todas as POs
+    setCard('cardNotif', true, true);
+    setCard('cardPessoas', true, true);      // aprovar cadastros — colapsado
+    setCard('cardMkt', true, true);
+    setCard('cardAprovar', true, true);
+    setCard('cardGerar', true, true);
+    setCard('cardValidar', true, true);
+    ordenar(['cardUser','cardSaldo','cardStatusAll','cardNotif','cardPessoas',
+      'cardMkt','cardAprovar','cardGerar','cardValidar']);
+  }
 }
 
 async function sair(){
@@ -407,12 +508,13 @@ async function carregarPessoas(){
   const { data, error } = await sb.rpc('listar_pessoas');
   if(error){ box.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
   if(!data || !data.length){ box.innerHTML='<div class="empty">Ninguém cadastrado ainda.</div>'; return; }
-  const papeis = ['pendente','agencia','marketing','admin'];
+  const papeis = ['pendente','agencia','marketing','financeiro','admin'];
+  const PAPEL_LABEL = {pendente:'Pendente', agencia:'Agência', marketing:'Marketing', financeiro:'Financial', admin:'Admin'};
   box.innerHTML = '<table><thead><tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Agência</th><th>Ação</th></tr></thead><tbody>'
     + data.map(p=>{
         const nomeCompleto = [p.nome, p.sobrenome].filter(Boolean).join(' ') || '—';
         const opts = '<option value="">Selecione…</option>'
-          + papeis.map(r=>`<option value="${r}" ${p.papel===r?'selected':''}>${r}</option>`).join('');
+          + papeis.map(r=>`<option value="${r}" ${p.papel===r?'selected':''}>${PAPEL_LABEL[r]||r}</option>`).join('');
         const ehAg = p.papel === 'agencia';
         return `<tr>
           <td>${nomeCompleto}</td>
@@ -622,7 +724,7 @@ function desenharLista(rows){
       <td>${r.descricao||'—'}</td>
       <td class="num">${r.numero_po||'—'}</td>
       <td class="r num">${BRL(r.valor)}</td>
-      <td><span class="tag ${pend?'t-pend':'t-comp'}">${r.status}</span></td>
+      <td>${statusBadge(r.status)}</td>
     </tr>`;
   }).join('');
   document.getElementById('lista').innerHTML =
@@ -685,13 +787,22 @@ async function gerar(id){
 
 function refrescarSaldo(){ const id=document.getElementById('vProj').value; if(id) carregar(); }
 
-// ----- Agência: status das minhas POs + envio de NF -----
-const STATUS_LABEL = {SOLICITADA:'Solicitada',EM_APROVACAO:'Em aprovação',APROVADA:'Aprovada',
-  REJEITADA:'Rejeitada',PO_GERADA:'PO gerada',FATURADA:'Nota enviada',VALIDADA:'Validada',CONCLUIDA:'Concluída'};
-function tagClass(s){
-  if(['SOLICITADA','EM_APROVACAO','APROVADA'].includes(s)) return 't-pend';
-  if(s==='REJEITADA') return 't-rej';
-  return 't-comp';
+// ----- Status: rótulo, cor e ícone por estado -----
+const STATUS_META = {
+  SOLICITADA:   {l:'Solicitada',   c:'s-sol', i:'📝'},
+  EM_APROVACAO: {l:'Em aprovação', c:'s-ema', i:'🕒'},
+  APROVADA:     {l:'Aprovada',     c:'s-apr', i:'✅'},
+  REJEITADA:    {l:'Rejeitada',    c:'s-rej', i:'❌'},
+  PO_GERADA:    {l:'PO gerada',    c:'s-pog', i:'🧾'},
+  FATURADA:     {l:'Nota enviada', c:'s-fat', i:'📎'},
+  VALIDADA:     {l:'Validada',     c:'s-con', i:'✔️'},
+  CONCLUIDA:    {l:'Concluída',    c:'s-con', i:'✔️'},
+  CANCELADA:    {l:'Cancelada',    c:'s-can', i:'🚫'}
+};
+const STATUS_LABEL = Object.fromEntries(Object.entries(STATUS_META).map(([k,v])=>[k,v.l]));
+function statusBadge(s){
+  const m = STATUS_META[s] || {l:s,c:'s-sol',i:'•'};
+  return `<span class="tag ${m.c}">${m.i} ${m.l}</span>`;
 }
 
 async function carregarStatusAg(){
@@ -701,26 +812,62 @@ async function carregarStatusAg(){
     .order('solicitado_em',{ascending:false});   // RLS já filtra para a própria agência
   if(error){ box.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
   if(!data || !data.length){ box.innerHTML='<div class="empty">Você ainda não tem POs.</div>'; return; }
-  box.innerHTML = '<table><thead><tr><th>Projeto</th><th class="r">Valor</th><th>Nº PO</th><th>Status</th><th>Nota fiscal</th></tr></thead><tbody>'
-    + data.map(r=>{
-      let acao;
-      if(r.status==='PO_GERADA'){
-        acao = `<div style="display:flex;flex-direction:column;gap:5px">
-          <label class="sub" style="margin:0">Nota fiscal</label><input id="nf_${r.id}" type="file" />
-          <label class="sub" style="margin:0">Evidência (opcional)</label><input id="ev_${r.id}" type="file" />
-          <button class="sm" onclick="enviarNf('${r.id}')">Enviar</button></div>`;
-      } else if(['FATURADA','VALIDADA','CONCLUIDA'].includes(r.status)){
-        acao = 'Nota enviada';
-      } else if(r.status==='APROVADA'){
-        acao = 'Aguardando nº da PO';
-      } else { acao = '—'; }
-      return `<tr>
-        <td>${r.projetos?r.projetos.nome:'—'}</td>
-        <td class="r num">${BRL(r.valor)}</td>
-        <td class="num">${r.numero_po||'—'}</td>
-        <td><span class="tag ${tagClass(r.status)}">${STATUS_LABEL[r.status]||r.status}</span></td>
-        <td>${acao}</td></tr>`;
-    }).join('') + '</tbody></table>';
+
+  const linha = r => {
+    let acao;
+    if(r.status==='PO_GERADA'){
+      acao = `<div style="display:flex;flex-direction:column;gap:5px">
+        <label class="sub" style="margin:0">Nota fiscal</label><input id="nf_${r.id}" type="file" />
+        <label class="sub" style="margin:0">Evidência (opcional)</label><input id="ev_${r.id}" type="file" />
+        <button class="sm" onclick="enviarNf('${r.id}')">Enviar</button></div>`;
+    } else if(['FATURADA','VALIDADA','CONCLUIDA'].includes(r.status)){ acao = 'Nota enviada'; }
+    else if(r.status==='APROVADA'){ acao = 'Aguardando nº da PO'; }
+    else { acao = '—'; }
+    return `<tr><td>${r.projetos?r.projetos.nome:'—'}</td><td class="r num">${BRL(r.valor)}</td>
+      <td class="num">${r.numero_po||'—'}</td><td>${statusBadge(r.status)}</td><td>${acao}</td></tr>`;
+  };
+  const tabela = rows => '<table><thead><tr><th>Projeto</th><th class="r">Valor</th><th>Nº PO</th><th>Status</th><th>Nota fiscal</th></tr></thead><tbody>'
+    + rows.map(linha).join('') + '</tbody></table>';
+
+  const FINAL = ['APROVADA','FATURADA','VALIDADA','CONCLUIDA'];
+  const ativas = data.filter(r => !FINAL.includes(r.status)); // a fazer / rejeitadas / aguardando NF
+  const aprov  = data.filter(r =>  FINAL.includes(r.status)); // aprovadas e finalizadas
+
+  let html = ativas.length ? tabela(ativas) : '<div class="empty">Nenhuma PO ativa no momento.</div>';
+  if(aprov.length){
+    html += `<div class="grp" id="grpAprovAg">
+      <div class="grp-head" onclick="document.getElementById('grpAprovAg').classList.toggle('grp-open')">Aprovadas e finalizadas (${aprov.length})</div>
+      <div class="grp-body">${tabela(aprov)}</div></div>`;
+  }
+  box.innerHTML = html;
+}
+
+// ----- Marketing: POs aprovadas ainda não concluídas -----
+async function carregarStatusMkt(){
+  const box = document.getElementById('listaStatusMkt');
+  const { data, error } = await sb.from('pos')
+    .select('agencia,valor,numero_po,status,projetos(nome)')
+    .in('status',['APROVADA','PO_GERADA','FATURADA']).order('atualizado_em',{ascending:false});
+  if(error){ box.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
+  if(!data || !data.length){ box.innerHTML='<div class="empty">Nenhuma PO aprovada em andamento.</div>'; return; }
+  box.innerHTML = '<table><thead><tr><th>Projeto</th><th>Agência</th><th class="r">Valor</th><th>Nº PO</th><th>Status</th></tr></thead><tbody>'
+    + data.map(r=>`<tr><td>${r.projetos?r.projetos.nome:'—'}</td><td>${r.agencia}</td>
+        <td class="r num">${BRL(r.valor)}</td><td class="num">${r.numero_po||'—'}</td><td>${statusBadge(r.status)}</td></tr>`).join('')
+    + '</tbody></table>';
+}
+
+// ----- Admin: status de todas as POs -----
+async function carregarStatusAll(){
+  const box = document.getElementById('listaStatusAll');
+  const { data, error } = await sb.from('pos')
+    .select('agencia,valor,numero_po,status,projetos(nome)')
+    .order('atualizado_em',{ascending:false}).limit(200);
+  if(error){ box.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
+  if(!data || !data.length){ box.innerHTML='<div class="empty">Nenhuma PO ainda.</div>'; return; }
+  box.innerHTML = '<table><thead><tr><th>Projeto</th><th>Agência</th><th class="r">Valor</th><th>Nº PO</th><th>Status</th></tr></thead><tbody>'
+    + data.map(r=>`<tr><td>${r.projetos?r.projetos.nome:'—'}</td><td>${r.agencia}</td>
+        <td class="r num">${BRL(r.valor)}</td><td class="num">${r.numero_po||'—'}</td><td>${statusBadge(r.status)}</td></tr>`).join('')
+    + '</tbody></table>';
 }
 
 async function enviarNf(poId){
@@ -794,11 +941,18 @@ async function marcarLida(id){
   await sb.from('notificacoes').update({ lida:true }).eq('id', id);
   carregarNotificacoes();
 }
+function refrescarFilas(){
+  if(PAPEL==='marketing'){ carregarPendentes(); carregarStatusMkt(); }
+  else if(PAPEL==='financeiro'){ carregarAprovadas(); carregarValidar(); }
+  else if(PAPEL==='agencia'){ carregarStatusAg(); }
+  else if(PAPEL==='admin'){ carregarPendentes(); carregarAprovadas(); carregarValidar(); carregarStatusAll(); }
+  refrescarSaldo();
+}
 function assinarNotificacoes(){
   try{
     sb.channel('notif')
       .on('postgres_changes', { event:'INSERT', schema:'public', table:'notificacoes' },
-          () => carregarNotificacoes())
+          () => { carregarNotificacoes(); refrescarFilas(); })
       .subscribe();
   }catch(_){}
 }
