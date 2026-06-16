@@ -62,11 +62,11 @@
   .tag{font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;font-family:var(--mono)}
   .t-pend{background:#fdf2dd;color:#9a6a07} .t-comp{background:#e4f3ea;color:#176b3a}
   .t-rej{background:#fdecea;color:#a02617}
-  /* selos de status por estado */
-  .s-sol{background:#eef1f6;color:#475067} .s-ema{background:#fdf2dd;color:#9a6a07}
-  .s-apr{background:#e2ecfb;color:#1d5fb0} .s-rej{background:#fdecea;color:#a02617}
-  .s-pog{background:#ece3fb;color:#6b3fa0} .s-fat{background:#ffe9d6;color:#b5550c}
-  .s-con{background:#e4f3ea;color:#176b3a} .s-can{background:#eef1f6;color:#8a909c}
+  /* selos de status — paleta auxiliar TCL */
+  .s-sol{background:#eef0f3;color:#5a6068} .s-ema{background:#f3ecd9;color:#8a6a2c}
+  .s-apr{background:#e9ecf4;color:#4b5685} .s-rej{background:#fdeced;color:#bf0008}
+  .s-pog{background:#e7f0ec;color:#3c7a63} .s-fat{background:#fdeadf;color:#b5550c}
+  .s-con{background:#e4f3ea;color:#176b3a} .s-can{background:#eef0f3;color:#8a909c}
   /* cards colapsáveis — clique nítido */
   .card.collapsible > :first-child{cursor:pointer;position:relative}
   .card.collapsible > :first-child::after{
@@ -147,7 +147,7 @@
     <div class="field"><label>E-mail</label><input id="email" type="email" placeholder="voce@empresa.com" onkeydown="if(event.key==='Enter')authPrimary()" /></div>
     <div class="field"><label>Senha</label><input id="senha" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')authPrimary()" /></div>
     <button id="authBtn" onclick="authPrimary()">Entrar</button>
-    <div class="sub" style="margin-top:10px"><a href="#" id="authToggle" onclick="toggleAuth();return false">Não tem conta? Criar conta</a></div>
+    <div class="sub" style="margin-top:10px"><a href="#" onclick="primeiroAcesso();return false">Primeiro acesso (recebi um convite)</a></div>
     <div class="sub" style="margin-top:6px" id="forgotRow"><a href="#" onclick="recuperarSenha();return false">Esqueci minha senha</a></div>
     <div id="authMsg" class="msg"></div>
   </div>
@@ -247,6 +247,27 @@
     <!-- Marketing: pessoas e papéis -->
     <div class="card" id="cardPessoas">
       <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Pessoas e papéis</h2>
+      <div style="border:1px solid var(--line);border-radius:10px;padding:13px;margin-bottom:14px;background:#fafafb">
+        <div style="font-weight:700;font-size:13px;margin-bottom:10px">Convidar novo usuário</div>
+        <div class="row">
+          <div class="field"><label>Nome</label><input id="iNome" placeholder="Nome" /></div>
+          <div class="field"><label>Sobrenome</label><input id="iSobrenome" placeholder="Sobrenome" /></div>
+        </div>
+        <div class="field"><label>E-mail</label><input id="iEmail" type="email" placeholder="pessoa@empresa.com" /></div>
+        <div class="row">
+          <div class="field"><label>Papel</label>
+            <select id="iPapel" onchange="toggleAgenciaConvite()">
+              <option value="">Selecione…</option>
+              <option value="marketing">Marketing</option>
+              <option value="financeiro">Financial</option>
+              <option value="agencia">Agência</option>
+              <option value="admin">Admin</option>
+            </select></div>
+          <div class="field"><label>Agência</label><select id="iAgencia" disabled></select></div>
+        </div>
+        <button onclick="convidarUsuario()">Enviar convite</button>
+        <div id="conviteMsg" class="msg"></div>
+      </div>
       <div id="listaPessoas"></div>
     </div>
 
@@ -420,6 +441,13 @@ async function recuperarSenha(reenvio){
 function mostrarReset(){
   ['connCard','authCard','app'].forEach(id=>{ const e=document.getElementById(id); if(e) e.classList.add('hidden'); });
   document.getElementById('resetCard').classList.remove('hidden');
+}
+function primeiroAcesso(){
+  mostrarReset();
+  const em = document.getElementById('email').value.trim();
+  document.getElementById('resetEmail').value = em;
+  document.getElementById('resetEmail').focus();
+  show('resetMsg','ok','Digite seu e-mail e o código de 6 dígitos que você recebeu no convite, e crie sua senha. Se o código já expirou, clique em "Reenviar código".');
 }
 async function definirNovaSenha(){
   const senha = document.getElementById('novaSenha').value;
@@ -596,6 +624,7 @@ async function carregarProjetos(){
 // ----- Marketing: pessoas e papéis -----
 async function carregarPessoas(){
   const box = document.getElementById('listaPessoas');
+  const iag = document.getElementById('iAgencia'); if(iag) iag.innerHTML = opcoesAgencia();
   const { data, error } = await sb.rpc('listar_pessoas');
   if(error){ box.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
   if(!data || !data.length){ box.innerHTML='<div class="empty">Ninguém cadastrado ainda.</div>'; return; }
@@ -612,9 +641,39 @@ async function carregarPessoas(){
           <td>${p.email||'—'}</td>
           <td><select id="pa_${p.user_id}" onchange="toggleAgenciaPessoa('${p.user_id}')">${opts}</select></td>
           <td><select id="ag_${p.user_id}" ${ehAg?'':'disabled'}>${opcoesAgencia(p.agencia)}</select></td>
-          <td><button class="sm" onclick="salvarPapel('${p.user_id}')">Salvar</button></td>
+          <td style="white-space:nowrap"><button class="sm" onclick="salvarPapel('${p.user_id}')">Salvar</button><button class="ghost sm" onclick="deletarUsuario('${p.user_id}','${(p.email||'').replace(/'/g,'')}')">Excluir</button></td>
         </tr>`;
       }).join('') + '</tbody></table>';
+}
+function toggleAgenciaConvite(){
+  const papel = document.getElementById('iPapel').value;
+  const ag = document.getElementById('iAgencia');
+  ag.disabled = (papel !== 'agencia');
+  if(papel !== 'agencia') ag.value = '';
+}
+async function convidarUsuario(){
+  const email = document.getElementById('iEmail').value.trim();
+  const papel = document.getElementById('iPapel').value;
+  const agencia = document.getElementById('iAgencia').value;
+  const nome = document.getElementById('iNome').value.trim();
+  const sobrenome = document.getElementById('iSobrenome').value.trim();
+  if(!email || !papel){ show('conviteMsg','err','Informe e-mail e papel.'); return; }
+  if(papel === 'agencia' && !agencia){ show('conviteMsg','err','Escolha a agência.'); return; }
+  show('conviteMsg','ok','Enviando convite…');
+  const { data, error } = await sb.functions.invoke('admin-usuarios', {
+    body: { action:'convidar', email, papel, agencia, nome, sobrenome }
+  });
+  if(error || (data && data.error)){ show('conviteMsg','err', (data && data.error) || error.message); return; }
+  show('conviteMsg','ok','Convite enviado para '+email+'. A pessoa vai criar a senha pelo "Primeiro acesso".');
+  document.getElementById('iEmail').value=''; document.getElementById('iNome').value=''; document.getElementById('iSobrenome').value='';
+  document.getElementById('iPapel').value=''; toggleAgenciaConvite();
+  carregarPessoas();
+}
+async function deletarUsuario(userId, email){
+  if(!confirm('Excluir o usuário '+(email||'')+'? Esta ação é permanente.')) return;
+  const { data, error } = await sb.functions.invoke('admin-usuarios', { body: { action:'deletar', user_id: userId } });
+  if(error || (data && data.error)){ alert((data && data.error) || error.message); return; }
+  carregarPessoas();
 }
 function toggleAgenciaPessoa(userId){
   const papel = document.getElementById('pa_'+userId).value;
