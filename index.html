@@ -1074,39 +1074,42 @@ async function carregarStatusAg(){
   if(!data || !data.length){ box.innerHTML='<div class="empty">Você ainda não tem POs.</div>'; return; }
 
   const formFaturar = r => {
-    const aberto = (r.status==='ATUALIZAR_INFO') ? ' open' : '';
     const motivo = (r.status==='ATUALIZAR_INFO' && r.motivo_rejeicao)
-      ? `<div class="warn-box">Rejeitado pelo financeiro. Motivo: ${r.motivo_rejeicao}</div>` : '';
-    const titulo = (r.status==='ATUALIZAR_INFO') ? 'Atualizar e reenviar NF' : 'Faturar — enviar NF e evidências';
-    return `<details${aberto}>
-      <summary>${titulo}</summary>
-      <div class="det-body" style="display:flex;flex-direction:column;gap:8px">
+      ? `<div class="warn-box" style="flex-basis:100%">Rejeitado pelo financeiro. Motivo: ${r.motivo_rejeicao}</div>` : '';
+    return `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">
         ${motivo}
-        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
-          <div class="field" style="margin:0;flex:1;min-width:140px"><label>Número da NF</label>
-            <input id="nfn_${r.id}" placeholder="Ex.: 12345" oninput="previewVenc('${r.id}')" /></div>
-          <div class="field" style="margin:0;flex:1;min-width:160px"><label>Nota fiscal (arquivo)</label>
-            <input id="nf_${r.id}" type="file" onchange="previewVenc('${r.id}')" /></div>
-          <div class="field" style="margin:0;flex:1;min-width:160px"><label>Evidência (arquivo)</label>
-            <input id="ev_${r.id}" type="file" onchange="previewVenc('${r.id}')" /></div>
-        </div>
-        <div id="venc_${r.id}" class="sub" style="margin:0">Preencha número da NF, nota e evidência para ver o vencimento.</div>
-        <button class="sm" onclick="enviarNf('${r.id}')">Enviar faturamento</button>
-      </div></details>`;
+        <div class="field" style="margin:0;flex:1;min-width:150px"><label>Número da NF</label>
+          <input id="nfn_${r.id}" placeholder="Ex.: 12345" oninput="previewVenc('${r.id}')" /></div>
+        <div class="field" style="margin:0;flex:2;min-width:200px"><label>Nota fiscal (arquivo)</label>
+          <input id="nf_${r.id}" type="file" onchange="previewVenc('${r.id}')" /></div>
+        <div class="field" style="margin:0;flex:2;min-width:200px"><label>Evidência (arquivo)</label>
+          <input id="ev_${r.id}" type="file" onchange="previewVenc('${r.id}')" /></div>
+        <button class="sm" style="white-space:nowrap" onclick="enviarNf('${r.id}')">Enviar faturamento</button>
+        <div id="venc_${r.id}" class="sub" style="margin:0;flex-basis:100%">Preencha número da NF, nota e evidência para ver o vencimento.</div>
+      </div>`;
   };
   const podeCancelar = s => !['CONCLUIDA','CANCELADA','REJEITADA'].includes(s);
   const linha = r => {
+    const temForm = (r.status==='PO_GERADA' || r.status==='ATUALIZAR_INFO');
+    const aberto = (r.status==='ATUALIZAR_INFO');
     let acao;
-    if(r.status==='PO_GERADA' || r.status==='ATUALIZAR_INFO'){ acao = formFaturar(r); }
-    else if(['FATURADA','VALIDADA','CONCLUIDA'].includes(r.status)){
+    if(temForm){
+      const t = aberto ? 'Atualizar e reenviar NF' : 'Faturar — enviar NF e evidências';
+      acao = `<button class="ghost sm" onclick="toggleFat('${r.id}')">${t}</button>`;
+    } else if(['FATURADA','VALIDADA','CONCLUIDA'].includes(r.status)){
       acao = r.vencimento ? ('Nota '+(r.nf_numero||'')+' enviada · venc. '+fmtData(r.vencimento)) : 'Nota enviada';
     } else if(r.status==='APROVADA'){ acao = 'Aguardando nº da PO'; }
     else { acao = '—'; }
     const cancelar = podeCancelar(r.status)
       ? `<button class="ghost sm" onclick="cancelarPO('${r.id}')">Cancelar PO</button>` : '';
-    return `<tr><td>${r.projetos?r.projetos.nome:'—'}</td><td class="r num">${BRL(r.valor)}</td>
+    let tr = `<tr><td>${r.projetos?r.projetos.nome:'—'}</td><td class="r num">${BRL(r.valor)}</td>
       <td class="num">${r.numero_po||'—'}</td><td>${statusBadge(r.status)}${avisoNF(r.status)}</td>
       <td>${acao}</td><td>${cancelar}</td></tr>`;
+    if(temForm){
+      tr += `<tr id="fatrow_${r.id}" style="display:${aberto?'':'none'}">
+        <td colspan="6" style="background:#fafafb;padding:12px 12px 14px">${formFaturar(r)}</td></tr>`;
+    }
+    return tr;
   };
   const tabela = rows => '<table><thead><tr><th>Projeto</th><th class="r">Valor</th><th>Nº PO</th><th>Status</th><th>Faturamento</th><th></th></tr></thead><tbody>'
     + rows.map(linha).join('') + '</tbody></table>';
@@ -1122,6 +1125,11 @@ async function carregarStatusAg(){
       <div class="grp-body">${tabela(aprov)}</div></div>`;
   }
   box.innerHTML = html;
+}
+
+function toggleFat(id){
+  const el = document.getElementById('fatrow_'+id);
+  if(el) el.style.display = (el.style.display === 'none') ? '' : 'none';
 }
 
 // ----- Marketing: POs aprovadas ainda não concluídas -----
