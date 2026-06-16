@@ -369,8 +369,8 @@ async function previewClassificacao(){
   box.innerHTML = r ? `Resulta em → CC <b>${r.cc||'—'}</b> · Account <b>${r.account||'—'}</b> · <b>${r.descricao||'—'}</b>` : '';
 }
 
-// Atividades permitidas por agência (F2F = todas)
-const ATIV_POR_AGENCIA = { IEST:['KOL','Fee'], Shutter:['Fee'], Furia:['KOL'] };
+// Atividades permitidas por agência (F2F = todas menos KOL)
+const ATIV_POR_AGENCIA = { F2F:['AON','Campaings','Fee'], IEST:['KOL','Fee'], Shutter:['Fee'], Furia:['KOL'] };
 function atualizarAtividades(){
   const ag = document.getElementById('pAgencia').value;
   const lista = ATIV_POR_AGENCIA[ag] || ATIVIDADES;
