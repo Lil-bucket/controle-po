@@ -239,7 +239,7 @@
 
     <!-- Marketing: status das POs aprovadas ainda não concluídas -->
     <div class="card" id="cardStatusMkt">
-      <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>POs aprovadas em andamento</h2>
+      <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Status das POs</h2>
       <div id="listaStatusMkt"></div>
     </div>
 
@@ -573,11 +573,10 @@ function layoutPorPapel(papel){
   todos.forEach(id=>{ const c=document.getElementById(id); if(c){ c.style.display='none'; c.classList.remove('collapsible','collapsed'); }});
 
   if(papel === 'marketing'){
-    setCard('cardAprovar', true);            // notificações com botões aprovar/rejeitar
-    setCard('cardMkt', true, true);          // abrir projetos — colapsado
-    setCard('cardStatusMkt', true);          // POs aprovadas em andamento
+    setCard('cardStatusMkt', true);          // status das POs (com aprovar/rejeitar)
+    setCard('cardMkt', true, true);          // criar projeto — colapsado
     setCard('cardSaldo', true);
-    ordenar(['cardUser','cardAprovar','cardMkt','cardStatusMkt','cardSaldo']);
+    ordenar(['cardUser','cardStatusMkt','cardMkt','cardSaldo']);
   }
   else if(papel === 'financeiro'){
     setCard('cardGerar', true);              // POs a gerar
@@ -1010,12 +1009,12 @@ async function carregarPendentes(){
 async function aprovar(id){
   const { error } = await sb.rpc('aprovar_po', { p_po: id });
   if(error){ alert(error.message); }
-  await carregarPendentes(); refrescarSaldo();
+  refrescarFilas();
 }
 async function rejeitar(id){
   const { error } = await sb.rpc('rejeitar_po', { p_po: id });
   if(error){ alert(error.message); }
-  await carregarPendentes(); refrescarSaldo();
+  refrescarFilas();
 }
 
 // ----- Administrativo: gerar número da PO nas aprovadas -----
@@ -1129,13 +1128,21 @@ async function carregarStatusAg(){
 async function carregarStatusMkt(){
   const box = document.getElementById('listaStatusMkt');
   const { data, error } = await sb.from('pos')
-    .select('agencia,valor,numero_po,status,projetos(nome)')
-    .in('status',['APROVADA','PO_GERADA','ATUALIZAR_INFO','FATURADA']).order('atualizado_em',{ascending:false});
+    .select('id,agencia,valor,descricao,numero_po,status,projetos(nome)')
+    .in('status',['SOLICITADA','EM_APROVACAO','APROVADA','PO_GERADA','ATUALIZAR_INFO','FATURADA'])
+    .order('solicitado_em',{ascending:false});
   if(error){ box.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
-  if(!data || !data.length){ box.innerHTML='<div class="empty">Nenhuma PO aprovada em andamento.</div>'; return; }
-  box.innerHTML = '<table><thead><tr><th>Projeto</th><th>Agência</th><th class="r">Valor</th><th>Nº PO</th><th>Status</th></tr></thead><tbody>'
-    + data.map(r=>`<tr><td>${r.projetos?r.projetos.nome:'—'}</td><td>${r.agencia}</td>
-        <td class="r num">${BRL(r.valor)}</td><td class="num">${r.numero_po||'—'}</td><td>${statusBadge(r.status)}${avisoNF(r.status)}</td></tr>`).join('')
+  if(!data || !data.length){ box.innerHTML='<div class="empty">Nenhuma PO em andamento.</div>'; return; }
+  const acaoCell = r => {
+    if(['SOLICITADA','EM_APROVACAO'].includes(r.status)){
+      return `<button class="sm" onclick="aprovar('${r.id}')">Aprovar</button><button class="ghost sm" onclick="rejeitar('${r.id}')">Rejeitar</button>`;
+    }
+    return '—';
+  };
+  box.innerHTML = '<table><thead><tr><th>Projeto</th><th>Agência</th><th>Descrição</th><th class="r">Valor</th><th>Nº PO</th><th>Status</th><th>Ação</th></tr></thead><tbody>'
+    + data.map(r=>`<tr><td>${r.projetos?r.projetos.nome:'—'}</td><td>${r.agencia}</td><td>${r.descricao||'—'}</td>
+        <td class="r num">${BRL(r.valor)}</td><td class="num">${r.numero_po||'—'}</td>
+        <td>${statusBadge(r.status)}${avisoNF(r.status)}</td><td style="white-space:nowrap">${acaoCell(r)}</td></tr>`).join('')
     + '</tbody></table>';
 }
 
@@ -1284,7 +1291,7 @@ function refrescarFilas(){
   refrescarSaldo();
 }
 const DESTAQUE_CARDS = {
-  marketing:['cardAprovar','cardStatusMkt'],
+  marketing:['cardStatusMkt'],
   financeiro:['cardGerar','cardValidar'],
   agencia:['cardStatusAg'],
   admin:['cardStatusAll']
