@@ -113,31 +113,6 @@
   .pill-signup{background:#fdecd6;color:#9a6207}
   .bar-mini{flex:1;height:9px;background:#eef0f3;border-radius:5px;overflow:hidden;min-width:54px}
   .bar-mini > span{display:block;height:100%}
-  /* barra de navegação por função (botões grandes) */
-  .toolbar{display:flex;flex-wrap:wrap;gap:10px;padding:14px 16px}
-  .tool-btn{background:#fff;color:var(--ink);border:1px solid var(--line);font-weight:700}
-  .tool-btn:hover{background:#f4f5f6;border-color:#d4d6db}
-  .tool-btn.active{background:var(--teal);color:#fff;border-color:var(--teal)}
-  .tool-btn.active:hover{background:var(--teal-d)}
-  .tool-btn.has-news::after{content:'●';color:var(--amber);margin-left:7px;font-size:11px;vertical-align:1px}
-  /* visão de orçamentos (admin) — barras e detalhamento */
-  .orc-row{border:1px solid var(--line);border-radius:11px;padding:13px 14px;margin-bottom:10px;background:#fafafb;cursor:pointer}
-  .orc-row:hover{border-color:var(--teal);background:#fff}
-  .orc-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
-  .orc-name{font-weight:700}
-  .orc-bar{height:11px;border-radius:6px;background:#eef0f3;overflow:hidden;margin:9px 0 4px}
-  .orc-bar > span{display:block;height:100%;background:var(--green)}
-  .chip{display:inline-block;font-size:11.5px;color:var(--muted);margin-right:12px}
-  .chip b{color:var(--ink)}
-  .det-card{border:1px solid var(--line);border-radius:11px;padding:13px 14px;margin-bottom:10px;background:#fff}
-  /* janela modal (estimativa de pagamento) */
-  .ov{position:fixed;inset:0;background:rgba(20,22,28,.5);display:flex;align-items:center;justify-content:center;z-index:60;padding:18px}
-  .ov.hidden{display:none}
-  .ov-box{background:#fff;border-radius:14px;padding:22px;max-width:430px;width:100%;box-shadow:0 18px 50px rgba(0,0,0,.28)}
-  .est-box{background:#fdeced;border:1px solid #f0c9cc;border-radius:11px;padding:16px;text-align:center}
-  .est-cap{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--teal-d);font-weight:700}
-  .est-val{font-size:30px;font-weight:800;color:var(--teal);margin:6px 0;font-family:var(--mono)}
-  .est-sub{font-size:12px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -197,13 +172,48 @@
   <!-- App -->
   <div id="app" class="hidden">
 
-    <div class="card" id="cardUser" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;gap:12px">
-      <span class="sub" id="whoami"></span>
-      <button class="ghost" onclick="sair()">Sair</button>
+    <div class="card" id="cardUser" style="padding:14px 16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div id="userAvatar" style="width:36px;height:36px;border-radius:50%;background:var(--red);color:#fff;display:grid;place-items:center;font-weight:800;font-size:15px;flex:0 0 36px">?</div>
+          <div>
+            <div id="userEmail" style="font-weight:700;font-size:14px">—</div>
+            <div id="userPapel" class="sub" style="font-size:12px">—</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="ghost sm" onclick="toggleMinhaConta()">Minha conta</button>
+          <button class="ghost sm" onclick="sair()">Sair</button>
+        </div>
+      </div>
+      <div id="minhaContaBox" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+          <div style="background:#f6f7f9;border-radius:10px;padding:12px">
+            <div class="sub" style="font-size:11px;text-transform:uppercase;letter-spacing:.08em">E-mail</div>
+            <div id="mcEmail" style="font-weight:700;font-size:14px;margin-top:3px;word-break:break-all">—</div>
+          </div>
+          <div style="background:#f6f7f9;border-radius:10px;padding:12px">
+            <div class="sub" style="font-size:11px;text-transform:uppercase;letter-spacing:.08em">Perfil de acesso</div>
+            <div id="mcPapel" style="font-weight:700;font-size:14px;margin-top:3px">—</div>
+          </div>
+        </div>
+        <button class="ghost sm" onclick="abrirTrocarSenha()">🔑 Trocar senha</button>
+        <div id="mcMsg" class="msg" style="margin-top:8px"></div>
+        <!-- passo 1: pedir código -->
+        <div id="mcStep1" style="display:none;margin-top:12px">
+          <div class="sub" style="margin-bottom:6px">Vamos enviar um código de 6 dígitos para o seu e-mail.</div>
+          <button class="sm" onclick="enviarCodigoSenha()">Enviar código</button>
+        </div>
+        <!-- passo 2: código + nova senha -->
+        <div id="mcStep2" style="display:none;margin-top:12px;display:none">
+          <div class="field" style="margin-bottom:8px"><label>Código recebido</label><input id="mcCodigo" placeholder="123456" maxlength="6" style="letter-spacing:.2em;font-size:18px;max-width:160px" /></div>
+          <div class="field" style="margin-bottom:8px"><label>Nova senha</label><input id="mcSenha" type="password" placeholder="mínimo 8 caracteres" /></div>
+          <div class="field" style="margin-bottom:10px"><label>Confirmar nova senha</label><input id="mcSenha2" type="password" placeholder="repita a senha" /></div>
+          <button class="sm" onclick="confirmarTrocarSenha()">Salvar nova senha</button>
+          <button class="ghost sm" onclick="cancelarTrocarSenha()">Cancelar</button>
+        </div>
+      </div>
     </div>
-
-    <!-- Barra de navegação por função (montada conforme o papel) -->
-    <div class="card toolbar" id="toolbar" style="display:none"></div>
 
     <!-- Acesso pendente -->
     <div class="card" id="cardPending">
@@ -241,14 +251,15 @@
       <button id="btnProj" onclick="criarProjeto()">Criar projeto</button>
       <button id="btnCancelProj" class="ghost" style="display:none" onclick="cancelarEdicao()">Cancelar edição</button>
       <div id="mktMsg" class="msg"></div>
+      <div id="meusProjStatus" style="margin-top:12px"></div>
     </div>
 
     <!-- Admin: Orçamentos -->
     <div class="card" id="cardOrc">
-      <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>Abrir orçamento</h2>
+      <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>Orçamentos</h2>
       <div class="row">
         <div class="field"><label>Nome</label><input id="oNome" placeholder="Ex.: Gamescom 2026" /></div>
-        <div class="field"><label>Valor total</label><input id="oValor" type="text" inputmode="numeric" placeholder="0,00" /></div>
+        <div class="field"><label>Valor total</label><input id="oValor" type="text" inputmode="numeric" placeholder="R$ 100.000,00" /></div>
       </div>
       <div class="row">
         <div class="field"><label>Início</label><input id="oIni" type="month" /></div>
@@ -256,19 +267,7 @@
       </div>
       <button onclick="criarOrcamento()">Criar orçamento</button>
       <div id="orcMsg" class="msg"></div>
-    </div>
-
-    <!-- Admin: visão geral dos orçamentos (sempre visível) -->
-    <div class="card" id="cardVisaoOrc">
-      <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="10" width="3" height="8"/><rect x="12" y="6" width="3" height="12"/><rect x="17" y="13" width="3" height="5"/></svg>Visão geral dos orçamentos</h2>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
-        <label style="margin:0">Extrato do mês</label>
-        <input id="extratoMes" type="month" style="max-width:160px">
-        <button class="sm" onclick="exportarExtrato()">⬇ Exportar extrato</button>
-      </div>
-      <div class="sub" style="margin-bottom:8px">Clique em um orçamento para ver os projetos, as POs e os gráficos.</div>
-      <div id="listaOrc"></div>
-      <div id="orcDetalhe" style="margin-top:6px"></div>
+      <div id="listaOrc" style="margin-top:12px"></div>
     </div>
 
     <!-- Admin: Projetos a aprovar -->
@@ -284,7 +283,7 @@
       <div id="aprovadorHint" class="sub" style="margin:-4px 0 12px"></div>
       <div class="row">
         <div class="field"><label>Agência</label><input id="sAg" placeholder="Agência X" /></div>
-        <div class="field"><label>Valor</label><input id="sVal" type="text" inputmode="numeric" placeholder="0,00" /></div>
+        <div class="field"><label>Valor</label><input id="sVal" type="text" inputmode="numeric" placeholder="R$ 4.000,00" /></div>
       </div>
       <div class="field"><label>Descrição</label><input id="sDesc" placeholder="Mídia paga — semana 1" /></div>
       <button onclick="solicitar()">Solicitar PO</button>
@@ -305,8 +304,7 @@
 
     <!-- Marketing: status das POs aprovadas ainda não concluídas -->
     <div class="card" id="cardStatusMkt">
-      <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Status</h2>
-      <div id="meusProjStatus" style="margin-bottom:6px"></div>
+      <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Status das POs</h2>
       <div id="listaStatusMkt"></div>
     </div>
 
@@ -379,26 +377,10 @@
   </div>
 </div>
 
-<!-- Janela: estimativa de pagamento antes de enviar a PO -->
-<div id="modalPO" class="ov hidden">
-  <div class="ov-box">
-    <h3 style="margin:0 0 4px">Confirmar envio da PO</h3>
-    <div class="sub" style="margin-bottom:14px">Revise a estimativa de pagamento antes de enviar a PO para a agência.</div>
-    <div class="est-box">
-      <div class="est-cap">Estimativa de pagamento</div>
-      <div class="est-val" id="modalPOData">—</div>
-      <div class="est-sub">Data prevista caso a nota fiscal seja inserida hoje, pela regra de vencimento. A data final é definida quando a agência envia a NF.</div>
-    </div>
-    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
-      <button class="ghost" onclick="fecharModalPO()">Cancelar</button>
-      <button onclick="confirmarModalPO()">Confirmar e enviar</button>
-    </div>
-  </div>
-</div>
-
 <script>
 let sb = null;
 let PAPEL = '';
+let USER_EMAIL = '';
 const PAPEL_NOME = {pendente:'Pendente', agencia:'Agência', marketing:'Marketing', financeiro:'Financial', admin:'Admin'};
 let MINHA_AGENCIA = '';
 let MEUS_PROJ_IDS = [];
@@ -414,19 +396,15 @@ const BRL = v => (v==null?'—':Number(v).toLocaleString('pt-BR',{style:'currenc
 const mes1 = m => m ? m + '-01' : null;            // 'YYYY-MM' -> 'YYYY-MM-01'
 const show = (id,type,txt)=>{const e=document.getElementById(id);e.className='msg '+type;e.textContent=txt;};
 
-// Número no formato 0,00 (separador de milhar + 2 casas), sem "R$"
-const fmtNum = v => Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-// Máscara de valor: só aceita dígitos e auto-formata como 0,00 (ex.: 150000 -> 1.500,00)
+// Máscara de moeda: digita-se em centavos e o campo mostra R$ formatado
 function maskBRL(el){
-  if(!el || el._masked) return; el._masked = true;
-  el.setAttribute('inputmode','numeric');
   el.addEventListener('input',()=>{
     const d = el.value.replace(/\D/g,'');
-    el.value = d ? fmtNum(Number(d)/100) : '';
+    el.value = d ? (Number(d)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}) : '';
   });
 }
 const parseBRL = el => { const d = el.value.replace(/\D/g,''); return d ? Number(d)/100 : 0; };
-['oValor','sVal'].forEach(id => { const el=document.getElementById(id); if(el) maskBRL(el); });
+['pTeto','sVal'].forEach(id => { const el=document.getElementById(id); if(el) maskBRL(el); });
 
 // Agências da empresa (lista fixa)
 const AGENCIAS = ['F2F','IEST','Shutter','Furia'];
@@ -588,8 +566,16 @@ async function abrirApp(session){
   document.getElementById('app').classList.remove('hidden');
   // lê o papel pela função papel_atual() — não é bloqueada por RLS (security definer)
   const { data: papel } = await sb.rpc('papel_atual');
-  document.getElementById('whoami').textContent =
-    'Conectado como ' + session.user.email + ' · ' + (PAPEL_NOME[papel] || papel || '(sem papel definido)');
+  const email = session.user.email || '';
+  const papelNome = PAPEL_NOME[papel] || papel || '(sem papel definido)';
+  // cabeçalho compacto
+  document.getElementById('userEmail').textContent = email;
+  document.getElementById('userPapel').textContent = papelNome;
+  document.getElementById('userAvatar').textContent = (email[0]||'?').toUpperCase();
+  // painel expandido
+  document.getElementById('mcEmail').textContent = email;
+  document.getElementById('mcPapel').textContent = papelNome;
+  USER_EMAIL = email;
   // mostra/ordena as seções conforme o papel
   PAPEL = papel || '';
   const valido = ['marketing','agencia','financeiro','admin'].includes(papel);
@@ -624,93 +610,123 @@ async function abrirApp(session){
     carregarPendentes(); carregarAgencias(); preencherListas();
     document.getElementById('mesesBox').innerHTML=''; addMesRow();
     carregarStatusAll(); carregarOrcamentos(); carregarProjetosAprovar();
-    const em=document.getElementById('extratoMes'); if(em && !em.value){ const d=new Date(); em.value = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
   }
 
   assinarMudancas();
   carregarProjetos();
 }
 
+// Define quais blocos aparecem, em que ordem, e quais começam colapsados.
+// terceiro valor: undefined = sempre aberto; true = colapsável e fechado; false = colapsável e aberto.
+const _toggleArmed = new WeakSet();
+function setCard(id, show, collapsed){
+  const c = document.getElementById(id);
+  if(!c) return;
+  c.style.display = show ? '' : 'none';
+  c.classList.remove('collapsible','collapsed');
+  if(show && collapsed !== undefined){
+    c.classList.add('collapsible');
+    if(collapsed) c.classList.add('collapsed');
+    if(!_toggleArmed.has(c)){
+      _toggleArmed.add(c);
+      const head = c.firstElementChild;
+      head.addEventListener('click', e=>{
+        const t = e.target.tagName;
+        if(t==='BUTTON'||t==='INPUT'||t==='SELECT'||t==='A'||t==='OPTION') return;
+        c.classList.toggle('collapsed');
+      });
+    }
+  }
+}
 function ordenar(ids){
   const app = document.getElementById('app');
   ids.forEach(id=>{ const c=document.getElementById(id); if(c) app.appendChild(c); });
 }
-
-// Botões de função (abrem/fecham um painel) por papel
-const PAINEIS = {
-  admin: [
-    {key:'orcamento',  label:'Abrir orçamento', cards:['cardOrc']},
-    {key:'status',     label:'Status',          cards:['cardAprovarProj','cardAprovar','cardStatusAll']},
-    {key:'financeiro', label:'Financeiro',      cards:['cardGerar','cardValidar']},
-    {key:'pessoas',    label:'Pessoas',         cards:['cardPessoas']},
-  ],
-  marketing: [
-    {key:'criar', label:'Criar projeto', cards:['cardMkt']},
-  ],
-  agencia: [
-    {key:'solicitar', label:'Solicitar PO', cards:['cardAg']},
-  ],
-  financeiro: [],
-};
-// Blocos sempre visíveis (abaixo dos botões), na ordem desejada
-const FIXOS = {
-  admin:      ['cardVisaoOrc','cardNotif'],
-  marketing:  ['cardStatusMkt','cardSaldo','cardNotif'],
-  agencia:    ['cardStatusAg','cardSaldo','cardNotif'],
-  financeiro: ['cardGerar','cardValidar','cardSaldo','cardNotif'],
-};
-const TODOS_CARDS = ['cardNotif','cardSaldo','cardMkt','cardPessoas','cardAprovar','cardOrc','cardVisaoOrc',
-  'cardAprovarProj','cardStatusMkt','cardStatusAll','cardGerar','cardValidar','cardAg','cardStatusAg'];
-
-let PANEL_OPEN = null;
 function layoutPorPapel(papel){
-  TODOS_CARDS.forEach(id=>{ const c=document.getElementById(id); if(c){ c.style.display='none'; c.classList.remove('has-update'); }});
-  PANEL_OPEN = null;
+  const todos = ['cardNotif','cardSaldo','cardMkt','cardPessoas','cardAprovar','cardOrc','cardAprovarProj',
+    'cardStatusMkt','cardStatusAll','cardGerar','cardValidar','cardAg','cardStatusAg'];
+  todos.forEach(id=>{ const c=document.getElementById(id); if(c){ c.style.display='none'; c.classList.remove('collapsible','collapsed'); }});
+  const be=document.getElementById('btnExtrato'); if(be) be.style.display = (papel==='admin'||papel==='financeiro') ? '' : 'none';
   const pab=document.getElementById('pAprovBox'); if(pab) pab.style.display = (papel==='admin') ? 'none' : '';
-  const be=document.getElementById('btnExtrato'); if(be) be.style.display = (papel==='financeiro') ? '' : 'none';
 
-  const cfg = PAINEIS[papel] || [];
-  const bar = document.getElementById('toolbar');
-  if(bar){
-    bar.style.display = cfg.length ? '' : 'none';
-    bar.innerHTML = cfg.map(p=>`<button class="tool-btn" data-key="${p.key}" onclick="togglePainel('${papel}','${p.key}')">${p.label}</button>`).join('');
+  if(papel === 'marketing'){
+    setCard('cardStatusMkt', true);          // status das POs (com aprovar/rejeitar)
+    setCard('cardMkt', true, true);          // criar projeto — colapsado
+    setCard('cardSaldo', true);
+    ordenar(['cardUser','cardStatusMkt','cardMkt','cardSaldo']);
   }
-  // ordem no DOM: usuário, barra, painéis (ocultos), blocos fixos
-  const ordem = ['cardUser','toolbar'];
-  cfg.forEach(p=> p.cards.forEach(c=>{ if(!ordem.includes(c)) ordem.push(c); }));
-  (FIXOS[papel]||[]).forEach(c=>{ if(!ordem.includes(c)) ordem.push(c); });
-  ordenar(ordem);
-  (FIXOS[papel]||[]).forEach(id=>{ const c=document.getElementById(id); if(c) c.style.display=''; });
-}
-
-// Abre/fecha um painel (comportamento sanfona: um aberto por vez)
-function togglePainel(papel, key){
-  const cfg = PAINEIS[papel] || [];
-  const sel = cfg.find(p=>p.key===key);
-  const jaAberto = (PANEL_OPEN === key);
-  cfg.forEach(p=> p.cards.forEach(id=>{ const c=document.getElementById(id); if(c) c.style.display='none'; }));
-  if(jaAberto || !sel){ PANEL_OPEN = null; }
-  else {
-    sel.cards.forEach(id=>{ const c=document.getElementById(id); if(c){ c.style.display=''; c.classList.remove('has-update'); } });
-    PANEL_OPEN = key;
-    const first = document.getElementById(sel.cards[0]); if(first) first.scrollIntoView({behavior:'smooth',block:'start'});
+  else if(papel === 'financeiro'){
+    setCard('cardGerar', true);              // POs a gerar
+    setCard('cardValidar', true);            // notas a validar
+    setCard('cardSaldo', true);
+    ordenar(['cardUser','cardGerar','cardValidar','cardSaldo']);
   }
-  document.querySelectorAll('#toolbar .tool-btn').forEach(b=>{
-    const ativo = b.getAttribute('data-key')===PANEL_OPEN;
-    b.classList.toggle('active', ativo);
-    if(ativo) b.classList.remove('has-news');
-  });
-}
-function abrirPainelForcado(papel, key){ if(PANEL_OPEN !== key) togglePainel(papel, key); }
-function botaoDoCard(cardId){
-  const p = (PAINEIS[PAPEL]||[]).find(p=>p.cards.includes(cardId));
-  return p ? document.querySelector('#toolbar .tool-btn[data-key="'+p.key+'"]') : null;
+  else if(papel === 'agencia'){
+    setCard('cardAg', true);                 // solicitar PO
+    setCard('cardStatusAg', true);           // status (aprovadas colapsadas dentro)
+    setCard('cardSaldo', true);
+    ordenar(['cardUser','cardAg','cardStatusAg','cardSaldo']);
+  }
+  else if(papel === 'admin'){
+    setCard('cardSaldo', true);
+    setCard('cardOrc', true);                // orçamentos
+    setCard('cardAprovarProj', true);        // projetos a aprovar
+    setCard('cardStatusAll', true);          // status de todas as POs
+    setCard('cardPessoas', true, true);      // aprovar cadastros — colapsado
+    setCard('cardMkt', true, true);
+    setCard('cardAprovar', true, true);
+    setCard('cardGerar', true, true);
+    setCard('cardValidar', true, true);
+    ordenar(['cardUser','cardSaldo','cardOrc','cardAprovarProj','cardStatusAll','cardPessoas',
+      'cardMkt','cardAprovar','cardGerar','cardValidar']);
+  }
 }
 
 async function sair(){
   await sb.auth.signOut();
   document.getElementById('app').classList.add('hidden');
   document.getElementById('authCard').classList.remove('hidden');
+}
+
+// ----- Minha conta -----
+function toggleMinhaConta(){
+  const box = document.getElementById('minhaContaBox');
+  box.style.display = box.style.display === 'none' ? '' : 'none';
+  cancelarTrocarSenha();
+}
+function abrirTrocarSenha(){
+  show('mcMsg','','');
+  document.getElementById('mcStep1').style.display = '';
+  document.getElementById('mcStep2').style.display = 'none';
+}
+function cancelarTrocarSenha(){
+  document.getElementById('mcStep1').style.display = 'none';
+  document.getElementById('mcStep2').style.display = 'none';
+  ['mcCodigo','mcSenha','mcSenha2'].forEach(id=>{ const e=document.getElementById(id); if(e) e.value=''; });
+  show('mcMsg','','');
+}
+async function enviarCodigoSenha(){
+  if(!USER_EMAIL){ show('mcMsg','err','E-mail não identificado. Tente sair e entrar novamente.'); return; }
+  const { error } = await sb.auth.resetPasswordForEmail(USER_EMAIL);
+  if(error){ show('mcMsg','err', error.message); return; }
+  show('mcMsg','ok','Código enviado para '+USER_EMAIL+'. Verifique a caixa de entrada.');
+  document.getElementById('mcStep1').style.display = 'none';
+  document.getElementById('mcStep2').style.display = '';
+  setTimeout(()=>document.getElementById('mcCodigo').focus(), 100);
+}
+async function confirmarTrocarSenha(){
+  const codigo = document.getElementById('mcCodigo').value.trim();
+  const senha  = document.getElementById('mcSenha').value;
+  const senha2 = document.getElementById('mcSenha2').value;
+  if(!codigo){ show('mcMsg','err','Informe o código de 6 dígitos.'); return; }
+  if(senha.length < 8){ show('mcMsg','err','A senha precisa ter pelo menos 8 caracteres.'); return; }
+  if(senha !== senha2){ show('mcMsg','err','As senhas não coincidem.'); return; }
+  const { error: ev } = await sb.auth.verifyOtp({ email: USER_EMAIL, token: codigo, type: 'recovery' });
+  if(ev){ show('mcMsg','err','Código inválido ou expirado: '+ev.message); return; }
+  const { error: eu } = await sb.auth.updateUser({ password: senha });
+  if(eu){ show('mcMsg','err','Erro ao salvar senha: '+eu.message); return; }
+  show('mcMsg','ok','Senha alterada com sucesso!');
+  cancelarTrocarSenha();
 }
 
 async function carregarProjetos(){
@@ -741,32 +757,21 @@ async function carregarOrcamentos(){
       orcs.map(o=>`<option value="${o.id}">${o.nome} — saldo ${BRL(o.saldo)}</option>`).join('');
     if(atual) sel.value = atual;
   }
-  // lista do admin — cartões clicáveis com barra de consumo
+  // lista do admin
   const box = document.getElementById('listaOrc');
   if(box){
     if(!orcs.length){ box.innerHTML = '<div class="empty">Nenhum orçamento criado ainda.</div>'; }
     else {
       const per = o => (o.periodo_inicio||'—').slice(0,7)+' → '+(o.periodo_fim||'—').slice(0,7);
-      box.innerHTML = orcs.map(o=>{
-        const tot=Number(o.valor_total)||0, con=Number(o.consumido)||0;
-        const pct = tot>0 ? Math.min(100, Math.round(con/tot*100)) : 0;
-        const cor = pct>=90?'var(--red)':(pct>=70?'var(--amber)':'var(--green)');
-        const saldoCor = Number(o.saldo)<0?'var(--red)':'inherit';
-        const nm = (o.nome||'').replace(/'/g,'');
-        return `<div class="orc-row" onclick="abrirDetalheOrc('${o.id}','${nm}')">
-          <div class="orc-top">
-            <div><span class="orc-name">${o.nome}</span> <span class="sub">· ${per(o)}</span></div>
-            <button class="ghost sm" onclick="event.stopPropagation();excluirOrcamento('${o.id}','${nm}')">Excluir</button>
-          </div>
-          <div class="orc-bar"><span style="width:${pct}%;background:${cor}"></span></div>
-          <div>
-            <span class="chip">Projetos abertos: <b>${o.n_projetos}</b></span>
-            <span class="chip">Verba alocada: <b>${BRL(o.valor_total)}</b></span>
-            <span class="chip">Consumida: <b>${BRL(o.consumido)}</b> (${pct}%)</span>
-            <span class="chip">Saldo: <b style="color:${saldoCor}">${BRL(o.saldo)}</b></span>
-          </div>
-        </div>`;
-      }).join('');
+      box.innerHTML = '<table><thead><tr><th>Orçamento</th><th>Período</th><th class="r">Total</th><th class="r">Consumido</th><th class="r">Saldo</th><th class="r">Proj.</th><th></th></tr></thead><tbody>'
+        + orcs.map(o=>`<tr>
+            <td>${o.nome}</td><td class="sub">${per(o)}</td>
+            <td class="r num">${BRL(o.valor_total)}</td>
+            <td class="r num">${BRL(o.consumido)}</td>
+            <td class="r num" style="color:${Number(o.saldo)<0?'var(--red)':'inherit'}">${BRL(o.saldo)}</td>
+            <td class="r num">${o.n_projetos}</td>
+            <td><button class="ghost sm" onclick="excluirOrcamento('${o.id}','${(o.nome||'').replace(/'/g,'')}')">Excluir</button></td>
+          </tr>`).join('') + '</tbody></table>';
     }
   }
 }
@@ -790,59 +795,6 @@ async function excluirOrcamento(id, nome){
   const { error } = await sb.from('orcamentos').delete().eq('id', id);
   if(error){ alert('Não foi possível excluir: '+error.message+'\n\nProvavelmente há projetos vinculados.'); return; }
   carregarOrcamentos();
-}
-
-// ----- Detalhamento de um orçamento: projetos + POs + gráficos -----
-let ORC_DET_ABERTO = null;
-async function abrirDetalheOrc(orcId, nome){
-  const box = document.getElementById('orcDetalhe');
-  if(!box) return;
-  if(ORC_DET_ABERTO === orcId){ box.innerHTML=''; ORC_DET_ABERTO=null; return; } // clicar de novo fecha
-  ORC_DET_ABERTO = orcId;
-  box.innerHTML = '<div class="sub" style="padding:8px 2px">Carregando detalhamento…</div>';
-  const { data, error } = await sb.from('projetos')
-    .select('id,nome,agencia,product_category,activity,aprovacao_status,tetos(teto),pos(valor,status,numero_po,descricao,agencia)')
-    .eq('orcamento_id', orcId).order('nome');
-  if(error){ box.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
-  const projs = data || [];
-  const APROV_LABEL = {APROVADO:'✅ Aprovado', PENDENTE:'🕒 Em aprovação', REJEITADO:'❌ Rejeitado'};
-  const NAO_CONSOME = ['REJEITADA','CANCELADA'];
-
-  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin:10px 0 8px">
-      <b>Detalhamento — ${nome}</b>
-      <button class="ghost sm" onclick="document.getElementById('orcDetalhe').innerHTML='';ORC_DET_ABERTO=null;">Fechar</button>
-    </div>`;
-  if(!projs.length){ box.innerHTML = html + '<div class="empty">Este orçamento ainda não tem projetos.</div>'; return; }
-
-  html += projs.map(p=>{
-    const teto = (p.tetos||[]).reduce((s,t)=>s+Number(t.teto||0),0);
-    const pos = p.pos||[];
-    const consumido = pos.filter(x=>!NAO_CONSOME.includes(x.status)).reduce((s,x)=>s+Number(x.valor||0),0);
-    const pct = teto>0 ? Math.min(100, Math.round(consumido/teto*100)) : 0;
-    const cor = pct>=90?'var(--red)':(pct>=70?'var(--amber)':'var(--green)');
-    const poLinhas = pos.length
-      ? '<table><thead><tr><th>Agência</th><th>Descrição</th><th>Nº PO</th><th class="r">Valor</th><th>Status</th></tr></thead><tbody>'
-        + pos.map(x=>`<tr><td>${x.agencia||'—'}</td><td>${x.descricao||'—'}</td><td class="num">${x.numero_po||'—'}</td>
-            <td class="r num">${BRL(x.valor)}</td><td>${statusBadge(x.status)}</td></tr>`).join('')
-        + '</tbody></table>'
-      : '<div class="empty">Sem POs neste projeto.</div>';
-    return `<div class="det-card">
-      <div class="orc-top">
-        <div><b>${p.nome}</b> <span class="sub">· ${p.agencia||'—'} · ${p.product_category||'—'}/${p.activity||'—'}</span></div>
-        <span class="sub">${APROV_LABEL[p.aprovacao_status]||p.aprovacao_status||''}</span>
-      </div>
-      <div class="orc-bar"><span style="width:${pct}%;background:${cor}"></span></div>
-      <div style="margin-bottom:8px">
-        <span class="chip">Teto: <b>${BRL(teto)}</b></span>
-        <span class="chip">Consumido: <b>${BRL(consumido)}</b> (${pct}%)</span>
-        <span class="chip">Saldo: <b style="color:${(teto-consumido)<0?'var(--red)':'inherit'}">${BRL(teto-consumido)}</b></span>
-        <span class="chip">POs: <b>${pos.length}</b></span>
-      </div>
-      ${poLinhas}
-    </div>`;
-  }).join('');
-  box.innerHTML = html;
-  box.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 
 // ----- Aprovação de projetos (admin) -----
@@ -980,7 +932,7 @@ function addMesRow(){
   div.style.cssText = 'display:flex;gap:8px;align-items:flex-end;margin-bottom:8px';
   div.innerHTML = `
     <div style="flex:1"><label>Mês</label><input type="month" id="mes_${id}"></div>
-    <div style="flex:1"><label>Valor</label><input type="text" inputmode="numeric" id="val_${id}" placeholder="0,00"></div>
+    <div style="flex:1"><label>Valor</label><input type="text" inputmode="numeric" id="val_${id}" placeholder="R$ 0,00"></div>
     <button class="ghost sm" onclick="removerMesRow(${id})" title="remover">×</button>`;
   document.getElementById('mesesBox').appendChild(div);
   const vEl = document.getElementById('val_'+id);
@@ -1095,9 +1047,8 @@ async function editarProjeto(id){
   if(error){ alert(error.message); return; }
   EDIT_PROJ = id;
   const { data: tetos } = await sb.from('tetos').select('competencia,teto').eq('projeto_id', id).order('competencia');
-  abrirPainelForcado(PAPEL, 'criar');
   const card = document.getElementById('cardMkt');
-  if(card){ card.style.display=''; }
+  if(card){ card.style.display=''; card.classList.remove('collapsed'); }
   carregarAgencias(); preencherListas(); await carregarOrcamentos();
   document.getElementById('pNome').value = proj.nome || '';
   document.getElementById('pOrc').value = proj.orcamento_id || '';
@@ -1114,7 +1065,7 @@ async function editarProjeto(id){
     const mesEl = div.querySelector('input[type="month"]');
     const valEl = div.querySelector('input[id^="val_"]');
     if(mesEl) mesEl.value = String(t.competencia).slice(0,7);
-    if(valEl) valEl.value = fmtNum(Number(t.teto));
+    if(valEl) valEl.value = BRL(Number(t.teto));
   });
   if(!(tetos||[]).length) addMesRow();
   mostrarSaldoOrc();
@@ -1231,7 +1182,6 @@ async function cancelarProjeto(id, nome){
   const { error } = await sb.rpc('cancelar_projeto', { p_projeto: id });
   if(error){ alert(error.message); return; }
   carregarProjetos(); preencherListas(); carregar();
-  if(PAPEL==='admin'){ carregarOrcamentos(); ORC_DET_ABERTO=null; const od=document.getElementById('orcDetalhe'); if(od) od.innerHTML=''; }
 }
 
 function desenharOverview(rows){
@@ -1366,15 +1316,11 @@ async function carregarAprovadas(){
       </tr>`).join('')
     + '</tbody></table>';
 }
-function gerar(id){
-  const num = (document.getElementById('num_'+id).value||'').trim();
+async function gerar(id){
+  const num = document.getElementById('num_'+id).value.trim();
   const arq = document.getElementById('pof_'+id).files[0];
   if(!num){ alert('Informe o número da PO.'); return; }
   if(!arq){ alert('Anexe o arquivo da PO (ele será enviado para a agência).'); return; }
-  // Antes de enviar, mostra a estimativa de pagamento em destaque
-  abrirModalPO(()=>gerarConfirmado(id, num, arq));
-}
-async function gerarConfirmado(id, num, arq){
   const seguro = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'')
                        .replace(/[^a-zA-Z0-9._-]/g,'_').replace(/_+/g,'_');
   const path = id+'/po_'+Date.now()+'_'+seguro(arq.name);
@@ -1385,24 +1331,12 @@ async function gerarConfirmado(id, num, arq){
   await carregarAprovadas(); refrescarSaldo();
 }
 
-// ----- Janela de estimativa de pagamento (antes de enviar a PO) -----
-let _modalPOcb = null;
-function abrirModalPO(onConfirm){
-  document.getElementById('modalPOData').textContent = fmtData(calcVenc(new Date()));
-  _modalPOcb = onConfirm;
-  document.getElementById('modalPO').classList.remove('hidden');
-}
-function fecharModalPO(){ document.getElementById('modalPO').classList.add('hidden'); _modalPOcb = null; }
-function confirmarModalPO(){ const cb = _modalPOcb; fecharModalPO(); if(cb) cb(); }
-
 function refrescarSaldo(){ const id=document.getElementById('vProj').value; if(id) carregar(); }
 
 // ----- Exportar extrato (admin/financeiro) no formato da referência -----
 async function exportarExtrato(){
   const btn = document.getElementById('btnExtrato');
-  const em = document.getElementById('extratoMes');
-  const vm = document.getElementById('vMes');
-  const mesInput = (em && em.value) ? em.value : ((vm && vm.value) ? vm.value : new Date().toISOString().slice(0,7));
+  const mesInput = document.getElementById('vMes').value;           // "YYYY-MM"
   const comp = (mesInput ? mesInput : new Date().toISOString().slice(0,7)) + '-01';
   if(btn){ btn.disabled=true; btn.textContent='Gerando…'; }
   try{
@@ -1482,10 +1416,10 @@ async function carregarStatusAg(){
           <input id="nfn_${r.id}" placeholder="Ex.: 12345" oninput="previewVenc('${r.id}')" /></div>
         <div class="field" style="margin:0;flex:2;min-width:200px"><label>Nota fiscal (arquivo)</label>
           <input id="nf_${r.id}" type="file" onchange="previewVenc('${r.id}')" /></div>
-        <div class="field" style="margin:0;flex:2;min-width:200px"><label>Evidência (opcional)</label>
+        <div class="field" style="margin:0;flex:2;min-width:200px"><label>Evidência (arquivo)</label>
           <input id="ev_${r.id}" type="file" onchange="previewVenc('${r.id}')" /></div>
         <button class="sm" style="white-space:nowrap" onclick="enviarNf('${r.id}')">Enviar faturamento</button>
-        <div id="venc_${r.id}" class="sub" style="margin:0;flex-basis:100%">Preencha o número da NF e anexe a nota fiscal para ver o vencimento. A evidência é opcional.</div>
+        <div id="venc_${r.id}" class="sub" style="margin:0;flex-basis:100%">Preencha número da NF, nota e evidência para ver o vencimento.</div>
       </div>`;
   };
   const podeCancelar = s => !['CONCLUIDA','CANCELADA','REJEITADA'].includes(s);
@@ -1555,12 +1489,6 @@ async function carregarStatusMkt(){
 }
 
 // ----- Admin: status de todas as POs -----
-const RESP_STATUS = {
-  SOLICITADA:'Marketing — aprovar', EM_APROVACAO:'Marketing — aprovar',
-  APROVADA:'Financeiro — gerar PO', PO_GERADA:'Agência — enviar NF',
-  ATUALIZAR_INFO:'Agência — corrigir NF', FATURADA:'Financeiro — validar',
-  VALIDADA:'—', CONCLUIDA:'—', CANCELADA:'—', REJEITADA:'—'
-};
 async function carregarStatusAll(){
   const box = document.getElementById('listaStatusAll');
   const { data, error } = await sb.from('pos')
@@ -1569,10 +1497,9 @@ async function carregarStatusAll(){
   if(error){ box.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
   if(!data || !data.length){ box.innerHTML='<div class="empty">Nenhuma PO ainda.</div>'; return; }
   const podeCancelar = s => !['CONCLUIDA','CANCELADA','REJEITADA'].includes(s);
-  box.innerHTML = '<table><thead><tr><th>Projeto</th><th>Agência</th><th class="r">Valor</th><th>Nº PO</th><th>Status</th><th>Responsável</th><th></th></tr></thead><tbody>'
+  box.innerHTML = '<table><thead><tr><th>Projeto</th><th>Agência</th><th class="r">Valor</th><th>Nº PO</th><th>Status</th><th></th></tr></thead><tbody>'
     + data.map(r=>`<tr><td>${r.projetos?r.projetos.nome:'—'}</td><td>${r.agencia}</td>
         <td class="r num">${BRL(r.valor)}</td><td class="num">${r.numero_po||'—'}</td><td>${statusBadge(r.status)}${avisoNF(r.status)}</td>
-        <td class="sub">${RESP_STATUS[r.status]||'—'}</td>
         <td>${podeCancelar(r.status)?`<button class="ghost sm" onclick="cancelarPO('${r.id}')">Cancelar</button>`:''}</td></tr>`).join('')
     + '</tbody></table>';
 }
@@ -1589,13 +1516,14 @@ function fmtData(s){ const d = (s instanceof Date) ? s : new Date(s+'T00:00:00')
 function previewVenc(poId){
   const num = (document.getElementById('nfn_'+poId)||{}).value || '';
   const nf  = (document.getElementById('nf_'+poId)||{}).files;
+  const ev  = (document.getElementById('ev_'+poId)||{}).files;
   const el  = document.getElementById('venc_'+poId);
   if(!el) return;
-  const ok = num.trim() && nf && nf[0];
+  const ok = num.trim() && nf && nf[0] && ev && ev[0];
   if(ok){
-    el.innerHTML = '<b style="color:var(--green)">✓ Vencimento previsto: '+fmtData(calcVenc(new Date()))+'</b> — pronto para enviar (evidência é opcional).';
+    el.innerHTML = '<b style="color:var(--green)">✓ Vencimento previsto: '+fmtData(calcVenc(new Date()))+'</b> — pronto para enviar.';
   } else {
-    el.textContent = 'Preencha o número da NF e anexe a nota fiscal para ver o vencimento. A evidência é opcional.';
+    el.textContent = 'Preencha número da NF, nota e evidência para ver o vencimento.';
   }
 }
 
@@ -1603,18 +1531,15 @@ async function enviarNf(poId){
   const num = (document.getElementById('nfn_'+poId).value||'').trim();
   const nf = document.getElementById('nf_'+poId).files[0];
   const ev = document.getElementById('ev_'+poId).files[0];
-  if(!num || !nf){ alert('Preencha o número da NF e anexe a nota fiscal. A evidência é opcional.'); return; }
+  if(!num || !nf || !ev){ alert('Preencha os três campos: número da NF, nota fiscal e evidência.'); return; }
   const seguro = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'')
                        .replace(/[^a-zA-Z0-9._-]/g,'_').replace(/_+/g,'_');
   const nfPath = poId+'/nf_'+Date.now()+'_'+seguro(nf.name);
   const up1 = await sb.storage.from('evidencias').upload(nfPath, nf);
   if(up1.error){ alert('Falha no upload da NF: '+up1.error.message); return; }
-  let evPath = null;
-  if(ev){
-    evPath = poId+'/ev_'+Date.now()+'_'+seguro(ev.name);
-    const up2 = await sb.storage.from('evidencias').upload(evPath, ev);
-    if(up2.error){ alert('Falha no upload da evidência: '+up2.error.message); return; }
-  }
+  const evPath = poId+'/ev_'+Date.now()+'_'+seguro(ev.name);
+  const up2 = await sb.storage.from('evidencias').upload(evPath, ev);
+  if(up2.error){ alert('Falha no upload da evidência: '+up2.error.message); return; }
   const { data, error } = await sb.rpc('faturar_po', { p_po: poId, p_fatura: nfPath, p_evidencia: evPath, p_nf_numero: num });
   if(error){ alert(error.message); return; }
   const venc = (data && data.vencimento) ? fmtData(data.vencimento) : '';
@@ -1718,9 +1643,6 @@ function destacarMudancas(){
     const c=document.getElementById(id); if(!c) return;
     c.classList.add('has-update');
     if(!c._clrArmed){ c._clrArmed=true; c.addEventListener('click', ()=>c.classList.remove('has-update')); }
-    // se o card estiver dentro de um painel fechado, sinaliza o botão da barra
-    const b = botaoDoCard(id);
-    if(b && getComputedStyle(c).display==='none') b.classList.add('has-news');
   });
 }
 function assinarMudancas(){
