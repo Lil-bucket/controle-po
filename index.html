@@ -201,12 +201,12 @@
         <div id="mcMsg" class="msg" style="margin-top:8px"></div>
         <!-- passo 1: pedir código -->
         <div id="mcStep1" style="display:none;margin-top:12px">
-          <div class="sub" style="margin-bottom:6px">Vamos enviar um código de 6 dígitos para o seu e-mail.</div>
+          <div class="sub" style="margin-bottom:6px">Vamos enviar um código de 8 dígitos para o seu e-mail.</div>
           <button class="sm" onclick="enviarCodigoSenha()">Enviar código</button>
         </div>
         <!-- passo 2: código + nova senha -->
         <div id="mcStep2" style="display:none;margin-top:12px;display:none">
-          <div class="field" style="margin-bottom:8px"><label>Código recebido</label><input id="mcCodigo" placeholder="123456" maxlength="6" style="letter-spacing:.2em;font-size:18px;max-width:160px" /></div>
+          <div class="field" style="margin-bottom:8px"><label>Código recebido</label><input id="mcCodigo" placeholder="12345678" maxlength="8" style="letter-spacing:.2em;font-size:18px;max-width:180px" /></div>
           <div class="field" style="margin-bottom:8px"><label>Nova senha</label><input id="mcSenha" type="password" placeholder="mínimo 8 caracteres" /></div>
           <div class="field" style="margin-bottom:10px"><label>Confirmar nova senha</label><input id="mcSenha2" type="password" placeholder="repita a senha" /></div>
           <button class="sm" onclick="confirmarTrocarSenha()">Salvar nova senha</button>
@@ -709,7 +709,7 @@ async function enviarCodigoSenha(){
   if(!USER_EMAIL){ show('mcMsg','err','E-mail não identificado. Tente sair e entrar novamente.'); return; }
   const { error } = await sb.auth.resetPasswordForEmail(USER_EMAIL);
   if(error){ show('mcMsg','err', error.message); return; }
-  show('mcMsg','ok','Código enviado para '+USER_EMAIL+'. Verifique a caixa de entrada.');
+  show('mcMsg','ok','Código enviado para '+USER_EMAIL+'. Verifique a caixa de entrada (código de 8 dígitos).');
   document.getElementById('mcStep1').style.display = 'none';
   document.getElementById('mcStep2').style.display = '';
   setTimeout(()=>document.getElementById('mcCodigo').focus(), 100);
@@ -718,7 +718,7 @@ async function confirmarTrocarSenha(){
   const codigo = document.getElementById('mcCodigo').value.trim();
   const senha  = document.getElementById('mcSenha').value;
   const senha2 = document.getElementById('mcSenha2').value;
-  if(!codigo){ show('mcMsg','err','Informe o código de 6 dígitos.'); return; }
+  if(!codigo){ show('mcMsg','err','Informe o código de 8 dígitos.'); return; }
   if(senha.length < 8){ show('mcMsg','err','A senha precisa ter pelo menos 8 caracteres.'); return; }
   if(senha !== senha2){ show('mcMsg','err','As senhas não coincidem.'); return; }
   const { error: ev } = await sb.auth.verifyOtp({ email: USER_EMAIL, token: codigo, type: 'recovery' });
