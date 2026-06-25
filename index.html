@@ -63,13 +63,11 @@
   .tag{font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;font-family:var(--mono)}
   .t-pend{background:#fdf2dd;color:#9a6a07} .t-comp{background:#e4f3ea;color:#176b3a}
   .t-rej{background:#fdecea;color:#a02617}
-  /* selos de status — paleta auxiliar TCL */
   .s-sol{background:#eef0f3;color:#5a6068} .s-ema{background:#f3ecd9;color:#8a6a2c}
   .s-apr{background:#e9ecf4;color:#4b5685} .s-rej{background:#fdeced;color:#bf0008}
   .s-pog{background:#e7f0ec;color:#3c7a63} .s-fat{background:#fdeadf;color:#b5550c}
   .s-upd{background:#fbe6c2;color:#8a5a00}
   .s-con{background:#e4f3ea;color:#176b3a} .s-can{background:#eef0f3;color:#8a909c}
-  /* cards colapsáveis — clique nítido */
   .card.collapsible > :first-child{cursor:pointer;position:relative}
   .card.collapsible > :first-child::after{
     margin-left:auto;font-size:11px;font-weight:700;color:var(--teal);
@@ -79,12 +77,10 @@
   #cardMkt.collapsed.collapsible > :first-child::after{content:'▸ criar novo projeto'}
   .card.collapsible > :first-child:hover::after{background:var(--teal);color:#fff;border-color:var(--teal)}
   .card.collapsed > :not(:first-child){display:none}
-  /* destaque de novidade no bloco de status */
   .card{position:relative}
   .card.has-update{box-shadow:0 0 0 2px var(--amber)}
   .card.has-update::before{content:'● novidade';position:absolute;top:-10px;left:14px;
     background:var(--amber);color:#fff;font-size:10px;font-weight:700;padding:2px 10px;border-radius:20px;letter-spacing:.03em}
-  /* grupo colapsável dentro de um card */
   .grp-head{display:flex;align-items:center;cursor:pointer;font-weight:700;font-size:13px;
     color:var(--ink);margin:10px 0 4px;padding:8px 11px;border:1px solid var(--line);
     border-radius:8px;background:#f6f6f8;user-select:none}
@@ -94,7 +90,6 @@
   .grp-head::after{content:'clique para expandir';margin-left:auto;font-size:11px;color:var(--muted);font-weight:600}
   .grp-open .grp-head::after{content:'clique para recolher'}
   .grp-body{display:none;margin-top:8px} .grp-open .grp-body{display:block}
-  /* disclosure por linha (faturar / arquivos) */
   details{border:1px solid var(--line);border-radius:8px;margin:2px 0;background:#fbfbfc}
   summary{cursor:pointer;padding:8px 11px;font-weight:700;font-size:12.5px;color:var(--teal);
     list-style:none;display:flex;align-items:center;gap:7px}
@@ -124,22 +119,14 @@
     <div class="banner">Acesso por perfil: agência solicita PO e sobe NF; marketing cria projetos e aprova; financial gera PO e valida notas; admin vê tudo, aprova cadastros e gerencia usuários.</div>
   </header>
 
-  <!-- Conexão -->
   <div class="card" id="connCard">
     <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v4a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></svg>Conectar ao seu Supabase</h2>
-    <div class="field">
-      <label>Project URL (Settings → API → Project URL)</label>
-      <input id="url" placeholder="https://xxxx.supabase.co" />
-    </div>
-    <div class="field">
-      <label>anon public key (Settings → API → Project API keys → anon public)</label>
-      <input id="key" placeholder="eyJhbGciOi..." />
-    </div>
+    <div class="field"><label>Project URL</label><input id="url" placeholder="https://xxxx.supabase.co" /></div>
+    <div class="field"><label>anon public key</label><input id="key" placeholder="eyJhbGciOi..." /></div>
     <button onclick="conectar()">Conectar</button>
     <div id="connMsg" class="msg"></div>
   </div>
 
-  <!-- Login -->
   <div id="authCard" class="card hidden">
     <h2 id="authTitle"><span id="authTitleText">Entrar na sua conta</span> <span id="authPill" class="pill pill-login">login</span></h2>
     <div class="sub" id="authSub" style="margin:-4px 0 14px">Use seu e-mail e senha para acessar.</div>
@@ -157,7 +144,6 @@
     <div id="authMsg" class="msg"></div>
   </div>
 
-  <!-- Recuperação por código de 6 dígitos -->
   <div id="resetCard" class="card hidden">
     <h2>Redefinir senha</h2>
     <div class="sub" style="margin:-4px 0 14px">Enviamos um código de 6 dígitos para o seu e-mail. Digite o código e a nova senha.</div>
@@ -169,9 +155,7 @@
     <div id="resetMsg" class="msg"></div>
   </div>
 
-  <!-- App -->
   <div id="app" class="hidden">
-
     <div class="card" id="cardUser" style="padding:14px 16px">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
         <div style="display:flex;align-items:center;gap:10px">
@@ -199,12 +183,10 @@
         </div>
         <button class="ghost sm" onclick="abrirTrocarSenha()">🔑 Trocar senha</button>
         <div id="mcMsg" class="msg" style="margin-top:8px"></div>
-        <!-- passo 1: pedir código -->
         <div id="mcStep1" style="display:none;margin-top:12px">
           <div class="sub" style="margin-bottom:6px">Vamos enviar um código de 8 dígitos para o seu e-mail.</div>
           <button class="sm" onclick="enviarCodigoSenha()">Enviar código</button>
         </div>
-        <!-- passo 2: código + nova senha -->
         <div id="mcStep2" style="display:none;margin-top:12px;display:none">
           <div class="field" style="margin-bottom:8px"><label>Código recebido</label><input id="mcCodigo" placeholder="12345678" maxlength="8" style="letter-spacing:.2em;font-size:18px;max-width:180px" /></div>
           <div class="field" style="margin-bottom:8px"><label>Nova senha</label><input id="mcSenha" type="password" placeholder="mínimo 8 caracteres" /></div>
@@ -214,14 +196,10 @@
         </div>
       </div>
     </div>
-
-    <!-- Acesso pendente -->
     <div class="card" id="cardPending">
       <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Acesso aguardando liberação</h2>
       <div class="sub">Sua conta foi criada. Peça ao admin para liberar seu acesso e definir seu papel.</div>
     </div>
-
-    <!-- Notificações -->
     <div class="card" id="cardNotif">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
         <h2 style="margin:0"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>Notificações</h2>
@@ -229,8 +207,6 @@
       </div>
       <div id="listaNotif"></div>
     </div>
-
-    <!-- Marketing: criar projeto -->
     <div class="card" id="cardMkt">
       <h2 id="cardMktTitle"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2Z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg><span id="cardMktTxt">Marketing — criar projeto</span></h2>
       <div class="field"><label>Nome do projeto</label><input id="pNome" placeholder="Ex.: Gamescom Brasil 2026" /></div>
@@ -253,8 +229,6 @@
       <div id="mktMsg" class="msg"></div>
       <div id="meusProjStatus" style="margin-top:12px"></div>
     </div>
-
-    <!-- Admin: Orçamentos -->
     <div class="card" id="cardOrc">
       <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>Orçamentos</h2>
       <div class="row">
@@ -269,14 +243,10 @@
       <div id="orcMsg" class="msg"></div>
       <div id="listaOrc" style="margin-top:12px"></div>
     </div>
-
-    <!-- Admin: Projetos a aprovar -->
     <div class="card" id="cardAprovarProj">
       <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Projetos a aprovar</h2>
       <div id="listaAprovarProj"></div>
     </div>
-
-    <!-- Agência: solicitar PO -->
     <div class="card" id="cardAg">
       <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>Agência — solicitar PO</h2>
       <div class="field"><label>Projeto</label><select id="sProj" onchange="mostrarAprovador()"></select></div>
@@ -289,32 +259,22 @@
       <button onclick="solicitar()">Solicitar PO</button>
       <div id="agMsg" class="msg"></div>
     </div>
-
-    <!-- Agência: status das minhas POs -->
     <div class="card" id="cardStatusAg">
       <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>Status das minhas POs</h2>
       <div id="listaStatusAg"></div>
     </div>
-
-    <!-- Marketing: aprovar pedidos (notificações com botões) -->
     <div class="card" id="cardAprovar">
       <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>Pedidos aguardando aprovação</h2>
       <div id="listaPend"></div>
     </div>
-
-    <!-- Marketing: status das POs aprovadas ainda não concluídas -->
     <div class="card" id="cardStatusMkt">
       <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Status das POs</h2>
       <div id="listaStatusMkt"></div>
     </div>
-
-    <!-- Admin: status geral de todas as POs -->
     <div class="card" id="cardStatusAll">
       <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>Status de todas as POs</h2>
       <div id="listaStatusAll"></div>
     </div>
-
-    <!-- Marketing: pessoas e papéis -->
     <div class="card" id="cardPessoas">
       <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Pessoas e papéis</h2>
       <div style="border:1px solid var(--line);border-radius:10px;padding:13px;margin-bottom:14px;background:#fafafb">
@@ -340,20 +300,14 @@
       </div>
       <div id="listaPessoas"></div>
     </div>
-
-    <!-- Admin: gerar número da PO -->
     <div class="card" id="cardGerar">
       <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>Gerar número da PO</h2>
       <div id="listaAprov"></div>
     </div>
-
-    <!-- Admin: validar notas -->
     <div class="card" id="cardValidar">
       <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/></svg>Notas a validar</h2>
       <div id="listaValidar"></div>
     </div>
-
-    <!-- Saldo + lista -->
     <div class="card" id="cardSaldo">
       <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>Saldo e visão geral
         <button id="btnExtrato" class="sm" style="display:none;float:right" onclick="exportarExtrato()">⬇ Exportar extrato</button></h2>
@@ -373,7 +327,6 @@
       <div id="overview"></div>
       <div id="lista"></div>
     </div>
-
   </div>
 </div>
 
@@ -387,16 +340,13 @@ let MEUS_PROJ_IDS = [];
 let PROJ_NOMES = {};
 let EDIT_PROJ = null;
 
-// === PARA PUBLICAR: cole sua URL e a anon key entre as aspas abaixo. ===
-// A anon key pode ficar pública com segurança PORQUE o RLS está ligado.
 const SUPABASE_URL  = "https://uryzzerzmmuwuqxjwwec.supabase.co";
 const SUPABASE_ANON = "sb_publishable_6DGDsBzRZoT1LQwRr3UCUQ_EHmh-B3J";
 
 const BRL = v => (v==null?'—':Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}));
-const mes1 = m => m ? m + '-01' : null;            // 'YYYY-MM' -> 'YYYY-MM-01'
+const mes1 = m => m ? m + '-01' : null;
 const show = (id,type,txt)=>{const e=document.getElementById(id);e.className='msg '+type;e.textContent=txt;};
 
-// Máscara de moeda: digita-se em centavos e o campo mostra R$ formatado
 function maskBRL(el){
   el.addEventListener('input',()=>{
     const d = el.value.replace(/\D/g,'');
@@ -406,14 +356,12 @@ function maskBRL(el){
 const parseBRL = el => { const d = el.value.replace(/\D/g,''); return d ? Number(d)/100 : 0; };
 ['pTeto','sVal'].forEach(id => { const el=document.getElementById(id); if(el) maskBRL(el); });
 
-// Agências da empresa (lista fixa)
 const AGENCIAS = ['F2F','IEST','Shutter','Furia'];
 function opcoesAgencia(selecionada){
   return '<option value="">Selecione…</option>'
     + AGENCIAS.map(a=>`<option value="${a}" ${selecionada===a?'selected':''}>${a}</option>`).join('');
 }
 
-// Listas de classificação contábil (da aba Listas)
 const CATEGORIAS = ['TV','MON','AC','REF','WM','MOB','TV-LABG','Copa- LABG','SQD - LABG'];
 const ATIVIDADES = ['KOL','AON','Campaings','Fee'];
 const PROJ_TAGS  = ['10 years TCLSemp','Always On','BAB','F2F','FreshIN','Furia','Gamescom','Iest','Instaladores','Libertadores','Shutterstock','SP Arte','SQD Miniled','Squad','World Cup','Olimpiada','Monitor'];
@@ -434,7 +382,6 @@ async function previewClassificacao(){
   box.innerHTML = r ? `Resulta em → CC <b>${r.cc||'—'}</b> · Account <b>${r.account||'—'}</b> · <b>${r.descricao||'—'}</b>` : '';
 }
 
-// Atividades permitidas por agência (F2F = todas menos KOL)
 const ATIV_POR_AGENCIA = { F2F:['AON','Campaings','Fee'], IEST:['KOL','Fee'], Shutter:['Fee'], Furia:['KOL'] };
 function atualizarAtividades(){
   const ag = document.getElementById('pAgencia').value;
@@ -447,10 +394,6 @@ async function conectar(){
   const url = document.getElementById('url').value.trim().replace(/\/+$/,'');
   const key = document.getElementById('key').value.trim().replace(/\s+/g,'');
   if(!url || !key){ show('connMsg','err','Preencha a URL e a anon key.'); return; }
-  if(!/^https:\/\/.+\.supabase\.co$/.test(url)){
-    show('connMsg','err','A URL deve ser a Project URL (ex.: https://xxxx.supabase.co), sem nada depois do .co. Pegue em Settings → API → Project URL.');
-    return;
-  }
   try{
     sb = supabase.createClient(url, key);
     ouvirAuth();
@@ -459,7 +402,6 @@ async function conectar(){
   }catch(e){ show('connMsg','err','Não consegui conectar: '+e.message); }
 }
 
-// Mostra login ou app conforme houver sessão ativa
 async function rotear(){
   const { data:{ session } } = await sb.auth.getSession();
   if(session){ await abrirApp(session); }
@@ -490,14 +432,12 @@ function toggleAuth(){
   document.getElementById('authSub').textContent   = login ? 'Use seu e-mail e senha para acessar.' : 'Cadastre-se; o marketing libera seu acesso depois.';
   document.getElementById('authBtn').textContent    = login ? 'Entrar' : 'Criar conta';
   document.getElementById('authBtn').style.background = login ? '' : 'var(--amber)';
-  document.getElementById('authToggle').textContent = login ? 'Não tem conta? Criar conta' : 'Já tem conta? Entrar';
   document.getElementById('signupFields').style.display = login ? 'none' : '';
   document.getElementById('forgotRow').style.display = login ? '' : 'none';
   document.getElementById('authMsg').className = 'msg';
 }
 function authPrimary(){ return authMode === 'login' ? entrar() : cadastrar(); }
 
-// ----- Esqueci minha senha (por código de 6 dígitos) -----
 async function recuperarSenha(reenvio){
   const fonte = reenvio ? 'resetEmail' : 'email';
   const email = document.getElementById(fonte).value.trim();
@@ -524,7 +464,6 @@ function primeiroAcesso(){
 async function definirNovaSenha(){
   const senha = document.getElementById('novaSenha').value;
   if(!senha || senha.length < 6){ show('resetMsg','err','A senha precisa ter ao menos 6 caracteres.'); return; }
-  // Se ainda não há sessão de recuperação, valida o código primeiro
   let { data:{ session } } = await sb.auth.getSession();
   if(!session){
     const email = document.getElementById('resetEmail').value.trim();
@@ -540,7 +479,6 @@ async function definirNovaSenha(){
   if(session){ await abrirApp(session); }
   else { document.getElementById('authCard').classList.remove('hidden'); show('authMsg','ok','Senha alterada! Entre com a nova senha.'); }
 }
-// Caso a pessoa ainda venha por um link válido, mostra a tela de redefinição
 function ouvirAuth(){
   if(window._authOuvido) return; window._authOuvido = true;
   sb.auth.onAuthStateChange((event)=>{ if(event === 'PASSWORD_RECOVERY'){ mostrarReset(); } });
@@ -564,19 +502,15 @@ async function cadastrar(){
 
 async function abrirApp(session){
   document.getElementById('app').classList.remove('hidden');
-  // lê o papel pela função papel_atual() — não é bloqueada por RLS (security definer)
   const { data: papel } = await sb.rpc('papel_atual');
   const email = session.user.email || '';
   const papelNome = PAPEL_NOME[papel] || papel || '(sem papel definido)';
-  // cabeçalho compacto
   document.getElementById('userEmail').textContent = email;
   document.getElementById('userPapel').textContent = papelNome;
   document.getElementById('userAvatar').textContent = (email[0]||'?').toUpperCase();
-  // painel expandido
   document.getElementById('mcEmail').textContent = email;
   document.getElementById('mcPapel').textContent = papelNome;
   USER_EMAIL = email;
-  // mostra/ordena as seções conforme o papel
   PAPEL = papel || '';
   const valido = ['marketing','agencia','financeiro','admin'].includes(papel);
   document.getElementById('cardPending').style.display = valido ? 'none' : '';
@@ -586,7 +520,6 @@ async function abrirApp(session){
       .forEach(id=>{ const c=document.getElementById(id); if(c) c.style.display='none'; });
     return;
   }
-
   if(papel === 'agencia'){
     const { data: minhaAg } = await sb.rpc('agencia_atual');
     MINHA_AGENCIA = minhaAg || '';
@@ -595,9 +528,7 @@ async function abrirApp(session){
     elAg.readOnly = true;
     elAg.style.background = '#f3f4f6';
   }
-
   layoutPorPapel(papel);
-
   if(papel === 'marketing'){
     carregarPendentes(); carregarAgencias(); preencherListas();
     document.getElementById('mesesBox').innerHTML=''; addMesRow();
@@ -611,13 +542,10 @@ async function abrirApp(session){
     document.getElementById('mesesBox').innerHTML=''; addMesRow();
     carregarStatusAll(); carregarOrcamentos(); carregarProjetosAprovar();
   }
-
   assinarMudancas();
   carregarProjetos();
 }
 
-// Define quais blocos aparecem, em que ordem, e quais começam colapsados.
-// terceiro valor: undefined = sempre aberto; true = colapsável e fechado; false = colapsável e aberto.
 const _toggleArmed = new WeakSet();
 function setCard(id, show, collapsed){
   const c = document.getElementById(id);
@@ -648,31 +576,30 @@ function layoutPorPapel(papel){
   todos.forEach(id=>{ const c=document.getElementById(id); if(c){ c.style.display='none'; c.classList.remove('collapsible','collapsed'); }});
   const be=document.getElementById('btnExtrato'); if(be) be.style.display = (papel==='admin'||papel==='financeiro') ? '' : 'none';
   const pab=document.getElementById('pAprovBox'); if(pab) pab.style.display = (papel==='admin') ? 'none' : '';
-
   if(papel === 'marketing'){
-    setCard('cardStatusMkt', true);          // status das POs (com aprovar/rejeitar)
-    setCard('cardMkt', true, true);          // criar projeto — colapsado
+    setCard('cardStatusMkt', true);
+    setCard('cardMkt', true, true);
     setCard('cardSaldo', true);
     ordenar(['cardUser','cardStatusMkt','cardMkt','cardSaldo']);
   }
   else if(papel === 'financeiro'){
-    setCard('cardGerar', true);              // POs a gerar
-    setCard('cardValidar', true);            // notas a validar
+    setCard('cardGerar', true);
+    setCard('cardValidar', true);
     setCard('cardSaldo', true);
     ordenar(['cardUser','cardGerar','cardValidar','cardSaldo']);
   }
   else if(papel === 'agencia'){
-    setCard('cardAg', true);                 // solicitar PO
-    setCard('cardStatusAg', true);           // status (aprovadas colapsadas dentro)
+    setCard('cardAg', true);
+    setCard('cardStatusAg', true);
     setCard('cardSaldo', true);
     ordenar(['cardUser','cardAg','cardStatusAg','cardSaldo']);
   }
   else if(papel === 'admin'){
     setCard('cardSaldo', true);
-    setCard('cardOrc', true);                // orçamentos
-    setCard('cardAprovarProj', true);        // projetos a aprovar
-    setCard('cardStatusAll', true);          // status de todas as POs
-    setCard('cardPessoas', true, true);      // aprovar cadastros — colapsado
+    setCard('cardOrc', true);
+    setCard('cardAprovarProj', true);
+    setCard('cardStatusAll', true);
+    setCard('cardPessoas', true, true);
     setCard('cardMkt', true, true);
     setCard('cardAprovar', true, true);
     setCard('cardGerar', true, true);
@@ -688,7 +615,6 @@ async function sair(){
   document.getElementById('authCard').classList.remove('hidden');
 }
 
-// ----- Minha conta -----
 function toggleMinhaConta(){
   const box = document.getElementById('minhaContaBox');
   box.style.display = box.style.display === 'none' ? '' : 'none';
@@ -745,11 +671,9 @@ async function carregarProjetos(){
   carregar();
 }
 
-// ----- Orçamentos (camada acima dos projetos) -----
 async function carregarOrcamentos(){
   const { data, error } = await sb.rpc('orcamentos_resumo');
   const orcs = error ? [] : (data || []);
-  // popular o seletor no formulário de projeto
   const sel = document.getElementById('pOrc');
   if(sel){
     const atual = sel.value;
@@ -757,7 +681,6 @@ async function carregarOrcamentos(){
       orcs.map(o=>`<option value="${o.id}">${o.nome} — saldo ${BRL(o.saldo)}</option>`).join('');
     if(atual) sel.value = atual;
   }
-  // lista do admin
   const box = document.getElementById('listaOrc');
   if(box){
     if(!orcs.length){ box.innerHTML = '<div class="empty">Nenhum orçamento criado ainda.</div>'; }
@@ -797,7 +720,6 @@ async function excluirOrcamento(id, nome){
   carregarOrcamentos();
 }
 
-// ----- Aprovação de projetos (admin) -----
 async function carregarProjetosAprovar(){
   const box = document.getElementById('listaAprovarProj');
   if(!box) return;
@@ -833,7 +755,6 @@ async function rejeitarProjeto(id){
   carregarProjetosAprovar(); carregarOrcamentos(); carregarProjetos();
 }
 
-// ----- Marketing: status de aprovação dos meus projetos -----
 async function carregarMeusProjStatus(){
   const box = document.getElementById('meusProjStatus');
   if(!box) return;
@@ -847,7 +768,6 @@ async function carregarMeusProjStatus(){
     + '</tbody></table>';
 }
 
-// ----- Marketing: pessoas e papéis -----
 async function carregarPessoas(){
   const box = document.getElementById('listaPessoas');
   const iag = document.getElementById('iAgencia'); if(iag) iag.innerHTML = opcoesAgencia();
@@ -863,8 +783,7 @@ async function carregarPessoas(){
           + papeis.map(r=>`<option value="${r}" ${p.papel===r?'selected':''}>${PAPEL_LABEL[r]||r}</option>`).join('');
         const ehAg = p.papel === 'agencia';
         return `<tr>
-          <td>${nomeCompleto}</td>
-          <td>${p.email||'—'}</td>
+          <td>${nomeCompleto}</td><td>${p.email||'—'}</td>
           <td><select id="pa_${p.user_id}" onchange="toggleAgenciaPessoa('${p.user_id}')">${opts}</select></td>
           <td><select id="ag_${p.user_id}" ${ehAg?'':'disabled'}>${opcoesAgencia(p.agencia)}</select></td>
           <td style="white-space:nowrap"><button class="sm" id="sv_${p.user_id}" onclick="salvarPapel('${p.user_id}')">Salvar</button><button class="ghost sm" onclick="deletarUsuario('${p.user_id}','${(p.email||'').replace(/'/g,'')}')">Excluir</button></td>
@@ -919,11 +838,8 @@ async function salvarPapel(userId){
   setTimeout(carregarPessoas, 1300);
 }
 
-// ----- Marketing: criar projeto com agência e distribuição mensal -----
 let mesSeq = 0;
-function carregarAgencias(){
-  document.getElementById('pAgencia').innerHTML = opcoesAgencia();
-}
+function carregarAgencias(){ document.getElementById('pAgencia').innerHTML = opcoesAgencia(); }
 function addMesRow(){
   mesSeq++;
   const id = mesSeq;
@@ -940,11 +856,7 @@ function addMesRow(){
   vEl.addEventListener('input', atualizarTotalProjeto);
   atualizarTotalProjeto();
 }
-function removerMesRow(id){
-  const el = document.getElementById('mesrow_'+id);
-  if(el) el.remove();
-  atualizarTotalProjeto();
-}
+function removerMesRow(id){ const el = document.getElementById('mesrow_'+id); if(el) el.remove(); atualizarTotalProjeto(); }
 let DISPONIVEL_ORC = null;
 async function mostrarSaldoOrc(){
   const orcId = document.getElementById('pOrc').value;
@@ -966,9 +878,7 @@ function atualizarTotalProjeto(){
   if(DISPONIVEL_ORC !== null && total > DISPONIVEL_ORC + 0.001){
     el.style.color = 'var(--red)';
     el.innerHTML = BRL(total) + ' — <b>estoura o orçamento</b> (disponível '+BRL(DISPONIVEL_ORC)+')';
-  } else {
-    el.style.color = '';
-  }
+  } else { el.style.color = ''; }
 }
 async function criarProjeto(){
   const nome = document.getElementById('pNome').value.trim();
@@ -980,11 +890,9 @@ async function criarProjeto(){
   if(!nome || !agencia){ show('mktMsg','err','Preencha o nome e escolha a agência.'); return; }
   if(!orcId){ show('mktMsg','err','Escolha o orçamento de origem.'); return; }
   if(!cat || !ativ || !projTag){ show('mktMsg','err','Escolha categoria de produto, atividade e projeto.'); return; }
-
   const ehAdmin = (PAPEL === 'admin');
   const arq = document.getElementById('pAprovArq').files[0];
   if(!EDIT_PROJ && !ehAdmin && !arq){ show('mktMsg','err','Anexe o documento da aprovação formal do projeto.'); return; }
-
   const rows = [];
   document.querySelectorAll('#mesesBox > div').forEach(div=>{
     const mesEl = div.querySelector('input[type="month"]');
@@ -994,20 +902,16 @@ async function criarProjeto(){
     if(mes && val) rows.push({ competencia: mes+'-01', teto: val });
   });
   if(!rows.length){ show('mktMsg','err','Adicione pelo menos um mês com valor.'); return; }
-
-  // Trava de orçamento: bloqueia se a alocação estourar o disponível (igual à PO)
   const totalProj = rows.reduce((s,r)=>s+r.teto, 0);
   const { data: disp } = await sb.rpc('orcamento_disponivel', { p_orcamento: orcId, p_excluir: EDIT_PROJ || null });
   if(disp !== null && disp !== undefined && totalProj > Number(disp) + 0.001){
     show('mktMsg','err','Este projeto (total '+BRL(totalProj)+') estoura o orçamento. Disponível: '+BRL(Number(disp))+'. Reduza os valores ou escolha outro orçamento.');
     return;
   }
-
   const { data: cls } = await sb.rpc('classificar', { p_d:cat, p_e:ativ, p_f:projTag });
   const c = (cls && cls[0]) || {};
   const campos = { nome, agencia, orcamento_id:orcId, product_category:cat, activity:ativ, projeto_tag:projTag,
     cc:c.cc, account:c.account, account_desc:c.descricao };
-
   if(!EDIT_PROJ && arq){
     const seguro = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9._-]/g,'_').replace(/_+/g,'_');
     const path = 'projetos/'+Date.now()+'_'+seguro(arq.name);
@@ -1016,7 +920,6 @@ async function criarProjeto(){
     campos.aprovacao_arquivo = path;
   }
   if(!EDIT_PROJ) campos.aprovacao_status = ehAdmin ? 'APROVADO' : 'PENDENTE';
-
   let projId = EDIT_PROJ;
   if(EDIT_PROJ){
     const { error: e1 } = await sb.from('projetos').update(campos).eq('id', EDIT_PROJ);
@@ -1027,11 +930,9 @@ async function criarProjeto(){
     if(e1){ show('mktMsg','err', e1.message); return; }
     projId = proj.id;
   }
-
   const tetosIns = rows.map(r=>({ projeto_id: projId, competencia: r.competencia, teto: r.teto, definido_por:'portal' }));
   const { error: e2 } = await sb.from('tetos').upsert(tetosIns, { onConflict: 'projeto_id,competencia' });
   if(e2){ show('mktMsg','err','Projeto salvo, mas falhou a distribuição: '+e2.message); return; }
-
   const total = rows.reduce((s,r)=>s+r.teto, 0);
   const sufixo = (EDIT_PROJ) ? 'atualizado'
                : (ehAdmin ? 'criado e aprovado' : 'criado e enviado para aprovação do admin');
@@ -1075,8 +976,7 @@ async function editarProjeto(id){
   if(card) card.scrollIntoView({behavior:'smooth', block:'start'});
 }
 function cancelarEdicao(){
-  EDIT_PROJ = null;
-  DISPONIVEL_ORC = null;
+  EDIT_PROJ = null; DISPONIVEL_ORC = null;
   document.getElementById('pNome').value='';
   ['pAgencia','pCat','pAtiv','pProjTag','pOrc'].forEach(id=>{ const e=document.getElementById(id); if(e) e.value=''; });
   const oh=document.getElementById('orcHint'); if(oh) oh.textContent='';
@@ -1095,27 +995,18 @@ async function solicitar(){
   const val = parseBRL(document.getElementById('sVal'));
   const desc = document.getElementById('sDesc').value.trim();
   if(!projeto || !ag || !val){ show('agMsg','err','Escolha o projeto e preencha agência e valor.'); return; }
-
-  // competência do projeto selecionado
   const { data: tetos } = await sb.from('tetos').select('competencia')
     .eq('projeto_id', projeto).order('competencia',{ascending:false}).limit(1);
   if(!tetos || !tetos.length){ show('agMsg','err','Esse projeto não tem teto cadastrado.'); return; }
   const comp = tetos[0].competencia;
-
   const { data, error } = await sb.rpc('solicitar_po', {
-    p_projeto: projeto, p_competencia: comp, p_agencia: ag, p_valor: val, p_descricao: desc
-  });
-
+    p_projeto: projeto, p_competencia: comp, p_agencia: ag, p_valor: val, p_descricao: desc });
   if(error){
-    // reconstrói a mensagem de estouro já em R$, com o saldo real do projeto
     const { data: saldo } = await sb.rpc('saldo_mensal', { p_competencia: comp });
     const s = (saldo||[]).find(x => x.projeto_id === projeto);
     if(s && val > Number(s.saldo)){
-      show('agMsg','err',
-        `Pedido de ${BRL(val)} estoura o teto. Saldo disponível: ${BRL(s.saldo)} de ${BRL(s.teto)}. Reduza o valor ou ajuste o teto.`);
-    } else {
-      show('agMsg','err', error.message);
-    }
+      show('agMsg','err',`Pedido de ${BRL(val)} estoura o teto. Saldo disponível: ${BRL(s.saldo)} de ${BRL(s.teto)}. Reduza o valor ou ajuste o teto.`);
+    } else { show('agMsg','err', error.message); }
   } else {
     let quem = '';
     try{
@@ -1146,7 +1037,6 @@ async function mostrarAprovador(){
   }catch(_){ hint.textContent=''; }
 }
 
-// usa o mês do projeto selecionado na seção de saldo (ou o do projeto em foco)
 let compAtual = null;
 function projetoCompetencia(){ return compAtual; }
 
@@ -1159,7 +1049,6 @@ async function carregar(){
   if(!mes){ return; }
   const comp = mes + '-01';
   const { data: saldo } = await sb.rpc('saldo_mensal', { p_competencia: comp });
-
   if(id === 'todos' || !id){
     meterBox.classList.add('hidden');
     lista.innerHTML = '';
@@ -1171,7 +1060,6 @@ async function carregar(){
   overview.innerHTML = '';
   const linha = (saldo||[]).find(s => s.projeto_id === id);
   if(linha){ desenharMeter(linha); } else { meterBox.classList.add('hidden'); }
-
   const { data: rows } = await sb.from('pos').select('*')
     .eq('projeto_id', id).eq('competencia', comp).order('solicitado_em',{ascending:false});
   desenharLista(rows || []);
@@ -1200,10 +1088,8 @@ function desenharOverview(rows){
     const acao = podeEditar ? `<td style="white-space:nowrap"><button class="ghost sm" onclick="editarProjeto('${r.projeto_id}')">Editar</button><button class="ghost sm" onclick="cancelarProjeto('${r.projeto_id}','${(r.projeto||'').replace(/'/g,'')}')">Cancelar</button></td>` : '';
     return `<tr>
       <td><a href="#" onclick="mostrarPOsProjeto('${r.projeto_id}');return false" title="ver todas as POs">${r.projeto}</a></td>
-      <td class="r num">${BRL(teto)}</td>
-      <td class="r num">${BRL(r.comprometido)}</td>
-      <td class="r num">${BRL(r.pendente)}</td>
-      <td class="r num">${BRL(saldo)}</td>
+      <td class="r num">${BRL(teto)}</td><td class="r num">${BRL(r.comprometido)}</td>
+      <td class="r num">${BRL(r.pendente)}</td><td class="r num">${BRL(saldo)}</td>
       <td style="min-width:120px">${barra}</td>${acao}</tr>`;
   }).join('');
   const pctTot = tt>0 ? Math.min(100, Math.round((tt - ts)/tt*100)) : 0;
@@ -1214,7 +1100,6 @@ function desenharOverview(rows){
     </tbody></table>`;
 }
 
-// Lista de todas as POs de um projeto (todos os meses e status)
 async function mostrarPOsProjeto(id){
   const lista = document.getElementById('lista');
   const nome = PROJ_NOMES[id] || 'projeto';
@@ -1224,14 +1109,10 @@ async function mostrarPOsProjeto(id){
   if(error){ lista.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
   const fmtMes = c => { const d=new Date(c+'T00:00:00'); return d.toLocaleDateString('pt-BR',{month:'2-digit',year:'numeric'}); };
   const body = (data||[]).map(r=>`<tr>
-      <td>${fmtMes(r.competencia)}</td>
-      <td>${r.agencia}</td>
-      <td>${r.descricao||'—'}</td>
-      <td class="num">${r.numero_po||'—'}</td>
-      <td class="num">${r.nf_numero||'—'}</td>
+      <td>${fmtMes(r.competencia)}</td><td>${r.agencia}</td><td>${r.descricao||'—'}</td>
+      <td class="num">${r.numero_po||'—'}</td><td class="num">${r.nf_numero||'—'}</td>
       <td class="num">${r.vencimento?fmtData(r.vencimento):'—'}</td>
-      <td class="r num">${BRL(r.valor)}</td>
-      <td>${statusBadge(r.status)}${avisoNF(r.status)}</td></tr>`).join('');
+      <td class="r num">${BRL(r.valor)}</td><td>${statusBadge(r.status)}${avisoNF(r.status)}</td></tr>`).join('');
   lista.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0">
       <b>POs do projeto: ${nome}</b><button class="ghost sm" onclick="document.getElementById('lista').innerHTML=''">Fechar</button></div>`
     + (data && data.length
@@ -1253,21 +1134,13 @@ function desenharMeter(s){
 function desenharLista(rows){
   const PEND=['SOLICITADA','EM_APROVACAO','APROVADA'];
   if(!rows.length){ document.getElementById('lista').innerHTML='<div class="empty">Nenhum pedido neste mês ainda.</div>'; return; }
-  const body = rows.map(r=>{
-    const pend = PEND.includes(r.status);
-    return `<tr>
-      <td>${r.agencia}</td>
-      <td>${r.descricao||'—'}</td>
-      <td class="num">${r.numero_po||'—'}</td>
-      <td class="r num">${BRL(r.valor)}</td>
-      <td>${statusBadge(r.status)}</td>
-    </tr>`;
-  }).join('');
+  const body = rows.map(r=>`<tr>
+      <td>${r.agencia}</td><td>${r.descricao||'—'}</td><td class="num">${r.numero_po||'—'}</td>
+      <td class="r num">${BRL(r.valor)}</td><td>${statusBadge(r.status)}</td></tr>`).join('');
   document.getElementById('lista').innerHTML =
     `<table><thead><tr><th>Agência</th><th>Descrição</th><th>Nº PO</th><th class="r">Valor</th><th>Status</th></tr></thead><tbody>${body}</tbody></table>`;
 }
 
-// ----- Marketing: aprovar / rejeitar pedidos pendentes -----
 async function carregarPendentes(){
   const box = document.getElementById('listaPend');
   const { data, error } = await sb.from('pos')
@@ -1277,52 +1150,35 @@ async function carregarPendentes(){
   if(!data || !data.length){ box.innerHTML='<div class="empty">Nenhum pedido pendente.</div>'; return; }
   box.innerHTML = '<table><thead><tr><th>Projeto</th><th>Agência</th><th>Descrição</th><th class="r">Valor</th><th>Ação</th></tr></thead><tbody>'
     + data.map(r=>`<tr>
-        <td>${r.projetos?r.projetos.nome:'—'}</td>
-        <td>${r.agencia}</td>
-        <td>${r.descricao||'—'}</td>
+        <td>${r.projetos?r.projetos.nome:'—'}</td><td>${r.agencia}</td><td>${r.descricao||'—'}</td>
         <td class="r num">${BRL(r.valor)}</td>
         <td><button class="sm" onclick="aprovar('${r.id}')">Aprovar</button><button class="ghost sm" onclick="rejeitar('${r.id}')">Rejeitar</button></td>
-      </tr>`).join('')
-    + '</tbody></table>';
+      </tr>`).join('') + '</tbody></table>';
 }
-async function aprovar(id){
-  const { error } = await sb.rpc('aprovar_po', { p_po: id });
-  if(error){ alert(error.message); }
-  refrescarFilas();
-}
-async function rejeitar(id){
-  const { error } = await sb.rpc('rejeitar_po', { p_po: id });
-  if(error){ alert(error.message); }
-  refrescarFilas();
-}
+async function aprovar(id){ const { error } = await sb.rpc('aprovar_po', { p_po: id }); if(error){ alert(error.message); } refrescarFilas(); }
+async function rejeitar(id){ const { error } = await sb.rpc('rejeitar_po', { p_po: id }); if(error){ alert(error.message); } refrescarFilas(); }
 
-// ----- Administrativo: gerar número da PO nas aprovadas -----
 async function carregarAprovadas(){
   const box = document.getElementById('listaAprov');
   const { data, error } = await sb.from('pos')
-    .select('id,agencia,valor,projetos(nome)')
-    .eq('status','APROVADA').order('atualizado_em');
+    .select('id,agencia,valor,projetos(nome)').eq('status','APROVADA').order('atualizado_em');
   if(error){ box.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
   if(!data || !data.length){ box.innerHTML='<div class="empty">Nenhuma PO aprovada aguardando número.</div>'; return; }
   box.innerHTML = '<table><thead><tr><th>Projeto</th><th>Agência</th><th class="r">Valor</th><th>Nº PO · arquivo · gerar</th></tr></thead><tbody>'
     + data.map(r=>`<tr>
-        <td>${r.projetos?r.projetos.nome:'—'}</td>
-        <td>${r.agencia}</td>
-        <td class="r num">${BRL(r.valor)}</td>
+        <td>${r.projetos?r.projetos.nome:'—'}</td><td>${r.agencia}</td><td class="r num">${BRL(r.valor)}</td>
         <td style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
           <input id="num_${r.id}" placeholder="nº da PO" style="max-width:120px" />
           <input id="pof_${r.id}" type="file" style="max-width:210px" />
           <button class="sm" onclick="gerar('${r.id}')">Gerar e enviar</button></td>
-      </tr>`).join('')
-    + '</tbody></table>';
+      </tr>`).join('') + '</tbody></table>';
 }
 async function gerar(id){
   const num = document.getElementById('num_'+id).value.trim();
   const arq = document.getElementById('pof_'+id).files[0];
   if(!num){ alert('Informe o número da PO.'); return; }
   if(!arq){ alert('Anexe o arquivo da PO (ele será enviado para a agência).'); return; }
-  const seguro = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-                       .replace(/[^a-zA-Z0-9._-]/g,'_').replace(/_+/g,'_');
+  const seguro = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9._-]/g,'_').replace(/_+/g,'_');
   const path = id+'/po_'+Date.now()+'_'+seguro(arq.name);
   const up = await sb.storage.from('evidencias').upload(path, arq);
   if(up.error){ alert('Falha no upload do arquivo da PO: '+up.error.message); return; }
@@ -1333,10 +1189,9 @@ async function gerar(id){
 
 function refrescarSaldo(){ const id=document.getElementById('vProj').value; if(id) carregar(); }
 
-// ----- Exportar extrato (admin/financeiro) no formato da referência -----
 async function exportarExtrato(){
   const btn = document.getElementById('btnExtrato');
-  const mesInput = document.getElementById('vMes').value;           // "YYYY-MM"
+  const mesInput = document.getElementById('vMes').value;
   const comp = (mesInput ? mesInput : new Date().toISOString().slice(0,7)) + '-01';
   if(btn){ btn.disabled=true; btn.textContent='Gerando…'; }
   try{
@@ -1345,13 +1200,7 @@ async function exportarExtrato(){
     const rows = data || [];
     const [ano,mes] = comp.split('-');
     const titulo = 'Extrato de POs — ' + mes + '/' + ano;
-
-    // Cabeçalho no padrão da referência
-    const aoa = [
-      [titulo],
-      [],
-      ['Categoria','C.C.','Account','Account description','Budget','Expenses','Balance']
-    ];
+    const aoa = [[titulo],[],['Categoria','C.C.','Account','Account description','Budget','Expenses','Balance']];
     let tBud=0, tExp=0;
     rows.forEach(r=>{
       const bud=Number(r.budget)||0, exp=Number(r.expenses)||0;
@@ -1359,11 +1208,9 @@ async function exportarExtrato(){
       aoa.push([r.categoria||'—', r.cc||'', r.account||'', r.account_desc||'', bud, exp, bud-exp]);
     });
     aoa.push(['','','','total', tBud, tExp, tBud-tExp]);
-
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     ws['!cols'] = [{wch:10},{wch:14},{wch:12},{wch:40},{wch:14},{wch:14},{wch:14}];
     ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:6}}];
-    // formato de número nas colunas Budget/Expenses/Balance
     const fim = aoa.length;
     for(let R=3; R<=fim; R++){
       ['E','F','G'].forEach(C=>{ const cel=ws[C+R]; if(cel && typeof cel.v==='number') cel.z='#,##0'; });
@@ -1371,42 +1218,27 @@ async function exportarExtrato(){
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Extrato');
     XLSX.writeFile(wb, 'extrato_POs_'+ano+'-'+mes+'.xlsx');
-  }catch(e){
-    alert('Não foi possível gerar o extrato: ' + (e.message||e));
-  }finally{
-    if(btn){ btn.disabled=false; btn.textContent='⬇ Exportar extrato'; }
-  }
+  }catch(e){ alert('Não foi possível gerar o extrato: ' + (e.message||e)); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent='⬇ Exportar extrato'; } }
 }
 
-// ----- Status: rótulo, cor e ícone por estado -----
 const STATUS_META = {
-  SOLICITADA:   {l:'Solicitada',   c:'s-sol', i:'📝'},
-  EM_APROVACAO: {l:'Em aprovação', c:'s-ema', i:'🕒'},
-  APROVADA:     {l:'Aprovada',     c:'s-apr', i:'✅'},
-  REJEITADA:    {l:'Rejeitada',    c:'s-rej', i:'❌'},
-  PO_GERADA:    {l:'PO gerada',    c:'s-pog', i:'🧾'},
-  ATUALIZAR_INFO:{l:'Atualizar informações', c:'s-upd', i:'✏️'},
-  FATURADA:     {l:'Nota enviada', c:'s-fat', i:'📎'},
-  VALIDADA:     {l:'Validada',     c:'s-con', i:'✔️'},
-  CONCLUIDA:    {l:'Concluída',    c:'s-con', i:'✔️'},
-  CANCELADA:    {l:'Cancelada',    c:'s-can', i:'🚫'}
+  SOLICITADA:{l:'Solicitada',c:'s-sol',i:'📝'}, EM_APROVACAO:{l:'Em aprovação',c:'s-ema',i:'🕒'},
+  APROVADA:{l:'Aprovada',c:'s-apr',i:'✅'}, REJEITADA:{l:'Rejeitada',c:'s-rej',i:'❌'},
+  PO_GERADA:{l:'PO gerada',c:'s-pog',i:'🧾'}, ATUALIZAR_INFO:{l:'Atualizar informações',c:'s-upd',i:'✏️'},
+  FATURADA:{l:'Nota enviada',c:'s-fat',i:'📎'}, VALIDADA:{l:'Validada',c:'s-con',i:'✔️'},
+  CONCLUIDA:{l:'Concluída',c:'s-con',i:'✔️'}, CANCELADA:{l:'Cancelada',c:'s-can',i:'🚫'}
 };
-const STATUS_LABEL = Object.fromEntries(Object.entries(STATUS_META).map(([k,v])=>[k,v.l]));
-function statusBadge(s){
-  const m = STATUS_META[s] || {l:s,c:'s-sol',i:'•'};
-  return `<span class="tag ${m.c}">${m.i} ${m.l}</span>`;
-}
-// PO gerada mas ainda sem nota fiscal enviada
-function avisoNF(s){ return s === 'PO_GERADA' ? ' <span class="warn-nf">⚠ sem NF</span>' : ''; }
+function statusBadge(s){ const m=STATUS_META[s]||{l:s,c:'s-sol',i:'•'}; return `<span class="tag ${m.c}">${m.i} ${m.l}</span>`; }
+function avisoNF(s){ return s==='PO_GERADA'?'<span class="warn-nf">⚠ sem NF</span>':''; }
 
 async function carregarStatusAg(){
   const box = document.getElementById('listaStatusAg');
   const { data, error } = await sb.from('pos')
     .select('id,valor,status,numero_po,nf_numero,vencimento,motivo_rejeicao,projetos(nome)')
-    .order('solicitado_em',{ascending:false});   // RLS já filtra para a própria agência
+    .order('solicitado_em',{ascending:false});
   if(error){ box.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
   if(!data || !data.length){ box.innerHTML='<div class="empty">Você ainda não tem POs.</div>'; return; }
-
   const formFaturar = r => {
     const motivo = (r.status==='ATUALIZAR_INFO' && r.motivo_rejeicao)
       ? `<div class="warn-box" style="flex-basis:100%">Rejeitado pelo financeiro. Motivo: ${r.motivo_rejeicao}</div>` : '';
@@ -1427,46 +1259,27 @@ async function carregarStatusAg(){
     const temForm = (r.status==='PO_GERADA' || r.status==='ATUALIZAR_INFO');
     const aberto = (r.status==='ATUALIZAR_INFO');
     let acao;
-    if(temForm){
-      const t = aberto ? 'Atualizar e reenviar NF' : 'Faturar — enviar NF e evidências';
-      acao = `<button class="ghost sm" onclick="toggleFat('${r.id}')">${t}</button>`;
-    } else if(['FATURADA','VALIDADA','CONCLUIDA'].includes(r.status)){
-      acao = r.vencimento ? ('Nota '+(r.nf_numero||'')+' enviada · venc. '+fmtData(r.vencimento)) : 'Nota enviada';
-    } else if(r.status==='APROVADA'){ acao = 'Aguardando nº da PO'; }
-    else { acao = '—'; }
-    const cancelar = podeCancelar(r.status)
-      ? `<button class="ghost sm" onclick="cancelarPO('${r.id}')">Cancelar PO</button>` : '';
+    if(temForm){ const t = aberto?'Atualizar e reenviar NF':'Faturar — enviar NF e evidências'; acao=`<button class="ghost sm" onclick="toggleFat('${r.id}')">${t}</button>`; }
+    else if(['FATURADA','VALIDADA','CONCLUIDA'].includes(r.status)){ acao = r.vencimento?('Nota '+(r.nf_numero||'')+' enviada · venc. '+fmtData(r.vencimento)):'Nota enviada'; }
+    else if(r.status==='APROVADA'){ acao='Aguardando nº da PO'; }
+    else { acao='—'; }
+    const cancelar = podeCancelar(r.status)?`<button class="ghost sm" onclick="cancelarPO('${r.id}')">Cancelar PO</button>`:'';
     let tr = `<tr><td>${r.projetos?r.projetos.nome:'—'}</td><td class="r num">${BRL(r.valor)}</td>
       <td class="num">${r.numero_po||'—'}</td><td>${statusBadge(r.status)}${avisoNF(r.status)}</td>
       <td>${acao}</td><td>${cancelar}</td></tr>`;
-    if(temForm){
-      tr += `<tr id="fatrow_${r.id}" style="display:${aberto?'':'none'}">
-        <td colspan="6" style="background:#fafafb;padding:12px 12px 14px">${formFaturar(r)}</td></tr>`;
-    }
+    if(temForm){ tr+=`<tr id="fatrow_${r.id}" style="display:${aberto?'':'none'}"><td colspan="6" style="background:#fafafb;padding:12px 12px 14px">${formFaturar(r)}</td></tr>`; }
     return tr;
   };
-  const tabela = rows => '<table><thead><tr><th>Projeto</th><th class="r">Valor</th><th>Nº PO</th><th>Status</th><th>Faturamento</th><th></th></tr></thead><tbody>'
-    + rows.map(linha).join('') + '</tbody></table>';
-
+  const tabela = rows => '<table><thead><tr><th>Projeto</th><th class="r">Valor</th><th>Nº PO</th><th>Status</th><th>Faturamento</th><th></th></tr></thead><tbody>'+rows.map(linha).join('')+'</tbody></table>';
   const FINAL = ['APROVADA','FATURADA','VALIDADA','CONCLUIDA'];
-  const ativas = data.filter(r => !FINAL.includes(r.status)); // a fazer / rejeitadas / atualizar / aguardando NF
-  const aprov  = data.filter(r =>  FINAL.includes(r.status)); // aprovadas e finalizadas
-
+  const ativas = data.filter(r => !FINAL.includes(r.status));
+  const aprov  = data.filter(r =>  FINAL.includes(r.status));
   let html = ativas.length ? tabela(ativas) : '<div class="empty">Nenhuma PO ativa no momento.</div>';
-  if(aprov.length){
-    html += `<div class="grp" id="grpAprovAg">
-      <div class="grp-head" onclick="document.getElementById('grpAprovAg').classList.toggle('grp-open')">Aprovadas e finalizadas (${aprov.length})</div>
-      <div class="grp-body">${tabela(aprov)}</div></div>`;
-  }
+  if(aprov.length){ html+=`<div class="grp" id="grpAprovAg"><div class="grp-head" onclick="document.getElementById('grpAprovAg').classList.toggle('grp-open')">Aprovadas e finalizadas (${aprov.length})</div><div class="grp-body">${tabela(aprov)}</div></div>`; }
   box.innerHTML = html;
 }
+function toggleFat(id){ const el=document.getElementById('fatrow_'+id); if(el) el.style.display=(el.style.display==='none')?'':'none'; }
 
-function toggleFat(id){
-  const el = document.getElementById('fatrow_'+id);
-  if(el) el.style.display = (el.style.display === 'none') ? '' : 'none';
-}
-
-// ----- Marketing: POs aprovadas ainda não concluídas -----
 async function carregarStatusMkt(){
   const box = document.getElementById('listaStatusMkt');
   const { data, error } = await sb.from('pos')
@@ -1488,12 +1301,10 @@ async function carregarStatusMkt(){
     + '</tbody></table>';
 }
 
-// ----- Admin: status de todas as POs -----
 async function carregarStatusAll(){
   const box = document.getElementById('listaStatusAll');
   const { data, error } = await sb.from('pos')
-    .select('id,agencia,valor,numero_po,status,projetos(nome)')
-    .order('atualizado_em',{ascending:false}).limit(200);
+    .select('id,agencia,valor,numero_po,status,projetos(nome)').order('atualizado_em',{ascending:false}).limit(200);
   if(error){ box.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
   if(!data || !data.length){ box.innerHTML='<div class="empty">Nenhuma PO ainda.</div>'; return; }
   const podeCancelar = s => !['CONCLUIDA','CANCELADA','REJEITADA'].includes(s);
@@ -1504,127 +1315,70 @@ async function carregarStatusAll(){
     + '</tbody></table>';
 }
 
-// Regra de vencimento por dia de inserção
-function calcVenc(d){
-  const day=d.getDate(), y=d.getFullYear(), m=d.getMonth();
-  if(day<=12) return new Date(y, m, 25);
-  if(day<=18) return new Date(y, m+1, 5);
-  if(day<=25) return new Date(y, m+1, 15);
-  return new Date(y, m+1, 25);
-}
-function fmtData(s){ const d = (s instanceof Date) ? s : new Date(s+'T00:00:00'); return d.toLocaleDateString('pt-BR'); }
+function calcVenc(d){ const day=d.getDate(),y=d.getFullYear(),m=d.getMonth(); if(day<=12)return new Date(y,m,25); if(day<=18)return new Date(y,m+1,5); if(day<=25)return new Date(y,m+1,15); return new Date(y,m+1,25); }
+function fmtData(s){ const d=(s instanceof Date)?s:new Date(s+'T00:00:00'); return d.toLocaleDateString('pt-BR'); }
 function previewVenc(poId){
-  const num = (document.getElementById('nfn_'+poId)||{}).value || '';
-  const nf  = (document.getElementById('nf_'+poId)||{}).files;
-  const ev  = (document.getElementById('ev_'+poId)||{}).files;
-  const el  = document.getElementById('venc_'+poId);
-  if(!el) return;
-  const ok = num.trim() && nf && nf[0] && ev && ev[0];
-  if(ok){
-    el.innerHTML = '<b style="color:var(--green)">✓ Vencimento previsto: '+fmtData(calcVenc(new Date()))+'</b> — pronto para enviar.';
-  } else {
-    el.textContent = 'Preencha número da NF, nota e evidência para ver o vencimento.';
-  }
+  const num=(document.getElementById('nfn_'+poId)||{}).value||'';
+  const nf=(document.getElementById('nf_'+poId)||{}).files;
+  const ev=(document.getElementById('ev_'+poId)||{}).files;
+  const el=document.getElementById('venc_'+poId); if(!el) return;
+  const ok=num.trim()&&nf&&nf[0]&&ev&&ev[0];
+  if(ok){ el.innerHTML='<b style="color:var(--green)">✓ Vencimento previsto: '+fmtData(calcVenc(new Date()))+'</b> — pronto para enviar.'; }
+  else { el.textContent='Preencha número da NF, nota e evidência para ver o vencimento.'; }
 }
 
 async function enviarNf(poId){
-  const num = (document.getElementById('nfn_'+poId).value||'').trim();
-  const nf = document.getElementById('nf_'+poId).files[0];
-  const ev = document.getElementById('ev_'+poId).files[0];
-  if(!num || !nf || !ev){ alert('Preencha os três campos: número da NF, nota fiscal e evidência.'); return; }
-  const seguro = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-                       .replace(/[^a-zA-Z0-9._-]/g,'_').replace(/_+/g,'_');
-  const nfPath = poId+'/nf_'+Date.now()+'_'+seguro(nf.name);
-  const up1 = await sb.storage.from('evidencias').upload(nfPath, nf);
+  const num=(document.getElementById('nfn_'+poId).value||'').trim();
+  const nf=document.getElementById('nf_'+poId).files[0];
+  const ev=document.getElementById('ev_'+poId).files[0];
+  if(!num||!nf||!ev){ alert('Preencha os três campos: número da NF, nota fiscal e evidência.'); return; }
+  const seguro=s=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9._-]/g,'_').replace(/_+/g,'_');
+  const nfPath=poId+'/nf_'+Date.now()+'_'+seguro(nf.name);
+  const up1=await sb.storage.from('evidencias').upload(nfPath,nf);
   if(up1.error){ alert('Falha no upload da NF: '+up1.error.message); return; }
-  const evPath = poId+'/ev_'+Date.now()+'_'+seguro(ev.name);
-  const up2 = await sb.storage.from('evidencias').upload(evPath, ev);
+  const evPath=poId+'/ev_'+Date.now()+'_'+seguro(ev.name);
+  const up2=await sb.storage.from('evidencias').upload(evPath,ev);
   if(up2.error){ alert('Falha no upload da evidência: '+up2.error.message); return; }
-  const { data, error } = await sb.rpc('faturar_po', { p_po: poId, p_fatura: nfPath, p_evidencia: evPath, p_nf_numero: num });
+  const{data,error}=await sb.rpc('faturar_po',{p_po:poId,p_fatura:nfPath,p_evidencia:evPath,p_nf_numero:num});
   if(error){ alert(error.message); return; }
-  const venc = (data && data.vencimento) ? fmtData(data.vencimento) : '';
+  const venc=(data&&data.vencimento)?fmtData(data.vencimento):'';
   carregarStatusAg();
   if(venc) alert('Faturamento enviado. Vencimento da NF: '+venc+'.');
 }
 
-// ----- Administrativo: validar notas (abrir arquivos + concluir) -----
 async function carregarValidar(){
-  const box = document.getElementById('listaValidar');
-  const { data, error } = await sb.from('pos')
-    .select('id,agencia,valor,numero_po,nf_numero,vencimento,fatura_url,evidencia_url,projetos(nome)')
-    .eq('status','FATURADA').order('vencimento');
+  const box=document.getElementById('listaValidar');
+  const{data,error}=await sb.from('pos').select('id,agencia,valor,numero_po,nf_numero,vencimento,fatura_url,evidencia_url,projetos(nome)').eq('status','FATURADA').order('vencimento');
   if(error){ box.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
-  if(!data || !data.length){ box.innerHTML='<div class="empty">Nenhuma nota aguardando validação.</div>'; return; }
-  box.innerHTML = '<table><thead><tr><th>Projeto</th><th>Agência</th><th>Nº PO</th><th>Nº NF</th><th>Vencimento</th><th class="r">Valor</th><th>Arquivos</th><th>Ação</th></tr></thead><tbody>'
-    + data.map(r=>{
-        const temArquivo = r.fatura_url || r.evidencia_url;
-        const nfBtn = r.fatura_url ? `<button class="ghost sm" onclick="abrirArquivo('${r.fatura_url}')">Abrir nota</button>` : '<span class="sub">Sem nota</span>';
-        const evBtn = r.evidencia_url ? `<button class="ghost sm" onclick="abrirArquivo('${r.evidencia_url}')">Abrir evidência</button>` : '';
-        const arquivos = `<details ${temArquivo?'open':''}>
-          <summary>Arquivos anexados</summary>
-          <div class="det-body" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${nfBtn}${evBtn}</div>
-        </details>`;
-        return `<tr>
-          <td>${r.projetos?r.projetos.nome:'—'}</td>
-          <td>${r.agencia}</td>
-          <td class="num">${r.numero_po||'—'}</td>
-          <td class="num">${r.nf_numero||'—'}</td>
-          <td class="num">${r.vencimento?fmtData(r.vencimento):'—'}</td>
-          <td class="r num">${BRL(r.valor)}</td>
-          <td style="min-width:190px">${arquivos}</td>
-          <td><button class="sm" onclick="validar('${r.id}')">Validar e concluir</button>
-            <details style="margin-top:6px">
-              <summary>Rejeitar (devolver à agência)</summary>
-              <div class="det-body" style="display:flex;flex-direction:column;gap:6px">
-                <textarea id="mot_${r.id}" rows="2" placeholder="Descreva o que precisa ser corrigido" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;font-family:var(--sans);font-size:13px"></textarea>
-                <button class="ghost sm" onclick="rejeitarFaturamento('${r.id}')">Rejeitar e devolver</button>
-              </div></details></td>
-        </tr>`;
-      }).join('') + '</tbody></table>';
+  if(!data||!data.length){ box.innerHTML='<div class="empty">Nenhuma nota aguardando validação.</div>'; return; }
+  box.innerHTML='<table><thead><tr><th>Projeto</th><th>Agência</th><th>Nº PO</th><th>Nº NF</th><th>Vencimento</th><th class="r">Valor</th><th>Arquivos</th><th>Ação</th></tr></thead><tbody>'
+    +data.map(r=>{
+      const temArquivo=r.fatura_url||r.evidencia_url;
+      const nfBtn=r.fatura_url?`<button class="ghost sm" onclick="abrirArquivo('${r.fatura_url}')">Abrir nota</button>`:'<span class="sub">Sem nota</span>';
+      const evBtn=r.evidencia_url?`<button class="ghost sm" onclick="abrirArquivo('${r.evidencia_url}')">Abrir evidência</button>`:'';
+      const arquivos=`<details ${temArquivo?'open':''}><summary>Arquivos anexados</summary><div class="det-body" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${nfBtn}${evBtn}</div></details>`;
+      return `<tr><td>${r.projetos?r.projetos.nome:'—'}</td><td>${r.agencia}</td><td class="num">${r.numero_po||'—'}</td><td class="num">${r.nf_numero||'—'}</td><td class="num">${r.vencimento?fmtData(r.vencimento):'—'}</td><td class="r num">${BRL(r.valor)}</td><td style="min-width:190px">${arquivos}</td>
+        <td><button class="sm" onclick="validar('${r.id}')">Validar e concluir</button>
+          <details style="margin-top:6px"><summary>Rejeitar (devolver à agência)</summary>
+            <div class="det-body" style="display:flex;flex-direction:column;gap:6px">
+              <textarea id="mot_${r.id}" rows="2" placeholder="Descreva o que precisa ser corrigido" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;font-family:var(--sans);font-size:13px"></textarea>
+              <button class="ghost sm" onclick="rejeitarFaturamento('${r.id}')">Rejeitar e devolver</button>
+            </div></details></td></tr>`;
+    }).join('')+'</tbody></table>';
 }
-async function abrirArquivo(path){
-  const { data, error } = await sb.storage.from('evidencias').createSignedUrl(path, 3600);
-  if(error){ alert('Não consegui abrir o arquivo: '+error.message); return; }
-  window.open(data.signedUrl, '_blank');
-}
-async function validar(id){
-  const { error } = await sb.rpc('validar_po', { p_po: id });
-  if(error){ alert(error.message); return; }
-  carregarValidar(); refrescarSaldo();
-}
-async function rejeitarFaturamento(id){
-  const motivo = (document.getElementById('mot_'+id).value||'').trim();
-  if(!motivo){ alert('Descreva o motivo da rejeição.'); return; }
-  const { error } = await sb.rpc('rejeitar_faturamento', { p_po: id, p_motivo: motivo });
-  if(error){ alert(error.message); return; }
-  carregarValidar(); refrescarSaldo();
-}
-async function cancelarPO(id){
-  if(!confirm('Cancelar esta PO? O valor volta para o saldo do projeto.')) return;
-  const { error } = await sb.rpc('cancelar_po', { p_po: id });
-  if(error){ alert(error.message); return; }
-  if(PAPEL==='agencia') carregarStatusAg();
-  if(PAPEL==='admin') carregarStatusAll();
-  refrescarSaldo();
-}
+async function abrirArquivo(path){ const{data,error}=await sb.storage.from('evidencias').createSignedUrl(path,3600); if(error){ alert('Não consegui abrir o arquivo: '+error.message); return; } window.open(data.signedUrl,'_blank'); }
+async function validar(id){ const{error}=await sb.rpc('validar_po',{p_po:id}); if(error){ alert(error.message); return; } carregarValidar(); refrescarSaldo(); }
+async function rejeitarFaturamento(id){ const motivo=(document.getElementById('mot_'+id).value||'').trim(); if(!motivo){ alert('Descreva o motivo da rejeição.'); return; } const{error}=await sb.rpc('rejeitar_faturamento',{p_po:id,p_motivo:motivo}); if(error){ alert(error.message); return; } carregarValidar(); refrescarSaldo(); }
+async function cancelarPO(id){ if(!confirm('Cancelar esta PO? O valor volta para o saldo do projeto.')) return; const{error}=await sb.rpc('cancelar_po',{p_po:id}); if(error){ alert(error.message); return; } if(PAPEL==='agencia') carregarStatusAg(); if(PAPEL==='admin') carregarStatusAll(); refrescarSaldo(); }
 
-// ----- Notificações -----
 async function carregarNotificacoes(){
-  const box = document.getElementById('listaNotif');
-  const { data, error } = await sb.from('notificacoes').select('*')
-    .eq('lida', false).order('criada_em',{ascending:false});
+  const box=document.getElementById('listaNotif');
+  const{data,error}=await sb.from('notificacoes').select('*').eq('lida',false).order('criada_em',{ascending:false});
   if(error){ box.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
-  if(!data || !data.length){ box.innerHTML='<div class="empty">Nenhuma notificação nova.</div>'; return; }
-  box.innerHTML = data.map(n=>`
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)">
-      <span>${n.mensagem} <span class="sub" style="font-size:11.5px">· ${new Date(n.criada_em).toLocaleString('pt-BR')}</span></span>
-      <button class="ghost sm" onclick="marcarLida(${n.id})">OK</button>
-    </div>`).join('');
+  if(!data||!data.length){ box.innerHTML='<div class="empty">Nenhuma notificação nova.</div>'; return; }
+  box.innerHTML=data.map(n=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)"><span>${n.mensagem} <span class="sub" style="font-size:11.5px">· ${new Date(n.criada_em).toLocaleString('pt-BR')}</span></span><button class="ghost sm" onclick="marcarLida(${n.id})">OK</button></div>`).join('');
 }
-async function marcarLida(id){
-  await sb.from('notificacoes').update({ lida:true }).eq('id', id);
-  carregarNotificacoes();
-}
+async function marcarLida(id){ await sb.from('notificacoes').update({lida:true}).eq('id',id); carregarNotificacoes(); }
 function refrescarFilas(){
   if(PAPEL==='marketing'){ carregarPendentes(); carregarStatusMkt(); }
   else if(PAPEL==='financeiro'){ carregarAprovadas(); carregarValidar(); }
@@ -1632,40 +1386,42 @@ function refrescarFilas(){
   else if(PAPEL==='admin'){ carregarPendentes(); carregarAprovadas(); carregarValidar(); carregarStatusAll(); }
   refrescarSaldo();
 }
-const DESTAQUE_CARDS = {
-  marketing:['cardStatusMkt'],
-  financeiro:['cardGerar','cardValidar'],
-  agencia:['cardStatusAg'],
-  admin:['cardStatusAll']
-};
-function destacarMudancas(){
-  (DESTAQUE_CARDS[PAPEL]||[]).forEach(id=>{
-    const c=document.getElementById(id); if(!c) return;
-    c.classList.add('has-update');
-    if(!c._clrArmed){ c._clrArmed=true; c.addEventListener('click', ()=>c.classList.remove('has-update')); }
-  });
-}
-function assinarMudancas(){
-  try{
-    sb.channel('mud')
-      .on('postgres_changes', { event:'INSERT', schema:'public', table:'notificacoes' },
-          () => { refrescarFilas(); destacarMudancas(); })
-      .subscribe();
-  }catch(_){}
-}
+const DESTAQUE_CARDS={marketing:['cardStatusMkt'],financeiro:['cardGerar','cardValidar'],agencia:['cardStatusAg'],admin:['cardStatusAll']};
+function destacarMudancas(){ (DESTAQUE_CARDS[PAPEL]||[]).forEach(id=>{ const c=document.getElementById(id); if(!c) return; c.classList.add('has-update'); if(!c._clrArmed){ c._clrArmed=true; c.addEventListener('click',()=>c.classList.remove('has-update')); } }); }
+function assinarMudancas(){ try{ sb.channel('mud').on('postgres_changes',{event:'INSERT',schema:'public',table:'notificacoes'},()=>{ refrescarFilas(); destacarMudancas(); }).subscribe(); }catch(_){} }
 
-// Ao abrir a página: se URL/anon key já estiverem preenchidas no topo, conecta sozinho
 (async function init(){
-  // Se a pessoa chegou por um link de e-mail já invalidado, avisa e limpa a URL
   let avisoLink = '';
   if(location.hash && location.hash.indexOf('error') !== -1){
-    avisoLink = 'O link do e-mail expira muito rápido (a segurança do e-mail costuma abri-lo antes de você). '
-              + 'Use o código: clique em "Esqueci minha senha", informe seu e-mail e digite o código de 6 dígitos.';
+    avisoLink = 'O link do e-mail expira muito rápido (a segurança do e-mail costuma abri-lo antes de você). Use o código: clique em "Esqueci minha senha", informe seu e-mail e digite o código de 6 dígitos.';
     history.replaceState(null, '', location.pathname);
   }
   if(SUPABASE_URL && SUPABASE_ANON){
     document.getElementById('connCard').classList.add('hidden');
     sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+    // ===== SSO CROSS-DOMAIN =====
+    // Lê tokens passados pelo Painel de Projetos via query string
+    try {
+      const _p = new URLSearchParams(location.search);
+      const _st = _p.get('sso_token');
+      const _sr = _p.get('sso_refresh');
+      if(_st && _sr){
+        // Remove os parâmetros da URL (não ficam visíveis na barra do navegador)
+        history.replaceState(null, '', location.pathname);
+        // Injeta a sessão no localStorage que o Supabase lê automaticamente
+        const _sk = 'sb-uryzzerzmmuwuqxjwwec-auth-token';
+        const _so = {
+          access_token:  _st,
+          refresh_token: _sr,
+          token_type:    'bearer',
+          expires_in:    3600,
+          expires_at:    Math.floor(Date.now() / 1000) + 3600
+        };
+        localStorage.setItem(_sk, JSON.stringify(_so));
+        console.log('[PO SSO] \u2713 sessão injetada via token cross-domain');
+      }
+    } catch(_e){ console.warn('[PO SSO] falhou ao injetar sessão:', _e); }
+    // ===== FIM DO SSO =====
     ouvirAuth();
     await rotear();
   }
