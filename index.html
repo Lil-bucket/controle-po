@@ -265,9 +265,7 @@
         <div class="field"><label>Início</label><input id="oIni" type="month" /></div>
         <div class="field"><label>Fim</label><input id="oFim" type="month" /></div>
       </div>
-      <div class="field"><label>Categoria de produto</label><select id="oCat"></select></div>
-      <button id="btnOrc" onclick="criarOrcamento()">Criar orçamento</button>
-      <button id="btnCancelOrc" class="ghost" style="display:none" onclick="cancelarEdicaoOrc()">Cancelar edição</button>
+      <button onclick="criarOrcamento()">Criar orçamento</button>
       <div id="orcMsg" class="msg"></div>
       <div id="listaOrc" style="margin-top:12px"></div>
     </div>
@@ -388,7 +386,6 @@ let MINHA_AGENCIA = '';
 let MEUS_PROJ_IDS = [];
 let PROJ_NOMES = {};
 let EDIT_PROJ = null;
-let EDIT_ORC = null;
 
 // === PARA PUBLICAR: cole sua URL e a anon key entre as aspas abaixo. ===
 // A anon key pode ficar pública com segurança PORQUE o RLS está ligado.
@@ -407,7 +404,7 @@ function maskBRL(el){
   });
 }
 const parseBRL = el => { const d = el.value.replace(/\D/g,''); return d ? Number(d)/100 : 0; };
-['pTeto','sVal','oValor'].forEach(id => { const el=document.getElementById(id); if(el) maskBRL(el); });
+['pTeto','sVal'].forEach(id => { const el=document.getElementById(id); if(el) maskBRL(el); });
 
 // Agências da empresa (lista fixa)
 const AGENCIAS = ['F2F','IEST','Shutter','Furia'];
@@ -427,7 +424,6 @@ function preencherListas(){
   document.getElementById('pCat').innerHTML     = opcoesSimples(CATEGORIAS);
   document.getElementById('pAtiv').innerHTML    = opcoesSimples(ATIVIDADES);
   document.getElementById('pProjTag').innerHTML = opcoesSimples(PROJ_TAGS);
-  const oc = document.getElementById('oCat'); if(oc) oc.innerHTML = opcoesSimples(CATEGORIAS);
 }
 async function previewClassificacao(){
   const d=document.getElementById('pCat').value, e=document.getElementById('pAtiv').value, f=document.getElementById('pProjTag').value;
@@ -734,11 +730,7 @@ async function confirmarTrocarSenha(){
 }
 
 async function carregarProjetos(){
-  const vProjEl = document.getElementById('vProj');
-  const prevSel = vProjEl ? vProjEl.value : 'todos';
   const { data } = await sb.from('projetos').select('id,nome,agencia,aprovacao_status').order('nome');
-  // Só projetos APROVADOS entram no saldo/visão geral e nos seletores de PO.
-  // Projetos PENDENTES ficam de fora daqui e aparecem em "Seus projetos aguardando/rejeitados".
   let lista = (data || []).filter(p => p.aprovacao_status === 'APROVADO');
   if(PAPEL === 'agencia' && MINHA_AGENCIA){
     lista = lista.filter(p => p.agencia === MINHA_AGENCIA);
@@ -747,14 +739,10 @@ async function carregarProjetos(){
   PROJ_NOMES = {}; (data||[]).forEach(p => PROJ_NOMES[p.id] = p.nome);
   const opts = lista.map(p=>`<option value="${p.id}">${p.nome}</option>`).join('');
   document.getElementById('sProj').innerHTML = '<option value="">Selecione o projeto</option>' + opts;
-  if(vProjEl){
-    vProjEl.innerHTML = '<option value="todos">Todos os projetos</option>' + opts;
-    // mantém a seleção anterior se o projeto ainda existir na lista (evita "pular" para Todos)
-    if(prevSel && (prevSel==='todos' || lista.some(p=>p.id===prevSel))) vProjEl.value = prevSel;
-  }
+  document.getElementById('vProj').innerHTML = '<option value="todos">Todos os projetos</option>' + opts;
   const vm = document.getElementById('vMes');
   if(vm && !vm.value){ const d=new Date(); vm.value = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
-  await carregar();
+  carregar();
 }
 
 // ----- Orçamentos (camada acima dos projetos) -----
@@ -766,7 +754,7 @@ async function carregarOrcamentos(){
   if(sel){
     const atual = sel.value;
     sel.innerHTML = '<option value="">Selecione o orçamento</option>' +
-      orcs.map(o=>`<option value="${o.id}">${o.nome}${o.product_category?(' — '+o.product_category):''} — saldo ${BRL(o.saldo)}</option>`).join('');
+      orcs.map(o=>`<option value="${o.id}">${o.nome} — saldo ${BRL(o.saldo)}</option>`).join('');
     if(atual) sel.value = atual;
   }
   // lista do admin
@@ -775,16 +763,14 @@ async function carregarOrcamentos(){
     if(!orcs.length){ box.innerHTML = '<div class="empty">Nenhum orçamento criado ainda.</div>'; }
     else {
       const per = o => (o.periodo_inicio||'—').slice(0,7)+' → '+(o.periodo_fim||'—').slice(0,7);
-      box.innerHTML = '<table><thead><tr><th>Orçamento</th><th>Categoria</th><th>Período</th><th class="r">Total</th><th class="r">Consumido</th><th class="r">Saldo</th><th class="r">Proj.</th><th></th></tr></thead><tbody>'
+      box.innerHTML = '<table><thead><tr><th>Orçamento</th><th>Período</th><th class="r">Total</th><th class="r">Consumido</th><th class="r">Saldo</th><th class="r">Proj.</th><th></th></tr></thead><tbody>'
         + orcs.map(o=>`<tr>
-            <td>${o.nome}</td>
-            <td class="sub">${o.product_category||'—'}</td>
-            <td class="sub">${per(o)}</td>
+            <td>${o.nome}</td><td class="sub">${per(o)}</td>
             <td class="r num">${BRL(o.valor_total)}</td>
             <td class="r num">${BRL(o.consumido)}</td>
             <td class="r num" style="color:${Number(o.saldo)<0?'var(--red)':'inherit'}">${BRL(o.saldo)}</td>
             <td class="r num">${o.n_projetos}</td>
-            <td style="white-space:nowrap"><button class="ghost sm" onclick="editarOrcamento('${o.id}')">Editar</button><button class="ghost sm" onclick="excluirOrcamento('${o.id}','${(o.nome||'').replace(/'/g,'')}')">Excluir</button></td>
+            <td><button class="ghost sm" onclick="excluirOrcamento('${o.id}','${(o.nome||'').replace(/'/g,'')}')">Excluir</button></td>
           </tr>`).join('') + '</tbody></table>';
     }
   }
@@ -794,69 +780,20 @@ async function criarOrcamento(){
   const valor = parseBRL(document.getElementById('oValor'));
   const ini = document.getElementById('oIni').value;
   const fim = document.getElementById('oFim').value;
-  const catEl = document.getElementById('oCat');
-  const cat = catEl ? catEl.value : '';
   if(!nome){ show('orcMsg','err','Informe o nome do orçamento.'); return; }
   if(!valor){ show('orcMsg','err','Informe o valor total.'); return; }
-
-  if(EDIT_ORC){
-    // Edição: UPDATE direto na tabela (RLS já permite admin editar orcamentos)
-    const { error } = await sb.from('orcamentos').update({
-      nome, valor_total: valor,
-      periodo_inicio: ini ? ini+'-01' : null,
-      periodo_fim: fim ? fim+'-01' : null,
-      product_category: cat || null
-    }).eq('id', EDIT_ORC);
-    if(error){ show('orcMsg','err', error.message); return; }
-    show('orcMsg','ok', `Orçamento "${nome}" atualizado.`);
-    cancelarEdicaoOrc();
-  } else {
-    const { error } = await sb.rpc('criar_orcamento', {
-      p_nome:nome, p_valor:valor, p_inicio: ini? ini+'-01': null, p_fim: fim? fim+'-01': null, p_categoria: cat || null });
-    if(error){
-      const precisaSql = /product_category|p_categoria/i.test(error.message||'');
-      show('orcMsg','err', precisaSql
-        ? 'Rode no Supabase o SQL de atualização (coluna product_category + função criar_orcamento) antes de usar este campo. Detalhe: '+error.message
-        : error.message);
-      return;
-    }
-    show('orcMsg','ok', `Orçamento "${nome}" criado (${BRL(valor)}).`);
-    document.getElementById('oNome').value=''; document.getElementById('oValor').value='';
-    document.getElementById('oIni').value=''; document.getElementById('oFim').value='';
-    if(catEl) catEl.value='';
-  }
+  const { error } = await sb.rpc('criar_orcamento', {
+    p_nome:nome, p_valor:valor, p_inicio: ini? ini+'-01': null, p_fim: fim? fim+'-01': null });
+  if(error){ show('orcMsg','err', error.message); return; }
+  show('orcMsg','ok', `Orçamento "${nome}" criado (${BRL(valor)}).`);
+  document.getElementById('oNome').value=''; document.getElementById('oValor').value='';
+  document.getElementById('oIni').value=''; document.getElementById('oFim').value='';
   carregarOrcamentos();
-}
-async function editarOrcamento(id){
-  const { data, error } = await sb.from('orcamentos')
-    .select('nome,valor_total,periodo_inicio,periodo_fim,product_category').eq('id', id).single();
-  if(error){ alert(error.message); return; }
-  EDIT_ORC = id;
-  document.getElementById('oNome').value = data.nome || '';
-  document.getElementById('oValor').value = data.valor_total!=null ? BRL(Number(data.valor_total)) : '';
-  document.getElementById('oIni').value = data.periodo_inicio ? String(data.periodo_inicio).slice(0,7) : '';
-  document.getElementById('oFim').value = data.periodo_fim ? String(data.periodo_fim).slice(0,7) : '';
-  const catEl = document.getElementById('oCat'); if(catEl) catEl.value = data.product_category || '';
-  document.getElementById('btnOrc').textContent = 'Salvar alterações';
-  document.getElementById('btnCancelOrc').style.display = '';
-  const card = document.getElementById('cardOrc');
-  if(card){ card.classList.remove('collapsed'); card.scrollIntoView({behavior:'smooth', block:'start'}); }
-}
-function cancelarEdicaoOrc(){
-  EDIT_ORC = null;
-  document.getElementById('oNome').value = '';
-  document.getElementById('oValor').value = '';
-  document.getElementById('oIni').value = '';
-  document.getElementById('oFim').value = '';
-  const catEl = document.getElementById('oCat'); if(catEl) catEl.value='';
-  document.getElementById('btnOrc').textContent = 'Criar orçamento';
-  document.getElementById('btnCancelOrc').style.display = 'none';
 }
 async function excluirOrcamento(id, nome){
   if(!confirm('Excluir o orçamento "'+(nome||'')+'"?\n(Só é possível se nenhum projeto estiver vinculado a ele.)')) return;
   const { error } = await sb.from('orcamentos').delete().eq('id', id);
   if(error){ alert('Não foi possível excluir: '+error.message+'\n\nProvavelmente há projetos vinculados.'); return; }
-  if(EDIT_ORC === id) cancelarEdicaoOrc();
   carregarOrcamentos();
 }
 
@@ -886,18 +823,14 @@ async function carregarProjetosAprovar(){
 async function aprovarProjeto(id){
   const { error } = await sb.rpc('aprovar_projeto', { p_projeto:id });
   if(error){ alert(error.message); return; }
-  await carregarProjetosAprovar();
-  await carregarOrcamentos();
-  await carregarProjetos();
+  carregarProjetosAprovar(); carregarOrcamentos(); await carregarProjetos();
 }
 async function rejeitarProjeto(id){
   const motivo = prompt('Motivo da rejeição do projeto:');
   if(motivo===null) return;
   const { error } = await sb.rpc('rejeitar_projeto', { p_projeto:id, p_motivo:motivo });
   if(error){ alert(error.message); return; }
-  await carregarProjetosAprovar();
-  await carregarOrcamentos();
-  await carregarProjetos();
+  carregarProjetosAprovar(); carregarOrcamentos(); await carregarProjetos();
 }
 
 // ----- Marketing: status de aprovação dos meus projetos -----
@@ -1104,12 +1037,9 @@ async function criarProjeto(){
                : (ehAdmin ? 'criado e aprovado' : 'criado e enviado para aprovação do admin');
   show('mktMsg','ok', `Projeto "${nome}" ${sufixo}: ${rows.length} mês(es), total ${BRL(total)}.`);
   cancelarEdicao();
-  // Sequência garantida: garante que o saldo/visão geral reflita o projeto recém salvo,
-  // independentemente de qual filtro/mês estava selecionado.
-  await carregarProjetos();
-  await carregarOrcamentos();
-  await carregarMeusProjStatus();
-  if(PAPEL==='admin') await carregarProjetosAprovar();
+  await carregarProjetos();   // aguarda — recarrega MEUS_PROJ_IDS e redesenha o saldo
+  carregarOrcamentos(); carregarMeusProjStatus();
+  if(PAPEL==='admin') carregarProjetosAprovar();
 }
 
 async function editarProjeto(id){
@@ -1252,8 +1182,7 @@ async function cancelarProjeto(id, nome){
   if(!confirm('Cancelar o projeto "'+(nome||'')+'" por inteiro?\n\nIsso apaga o projeto e TODAS as POs e tetos dele. Esta ação é permanente.')) return;
   const { error } = await sb.rpc('cancelar_projeto', { p_projeto: id });
   if(error){ alert(error.message); return; }
-  await carregarProjetos();
-  preencherListas();
+  carregarProjetos(); preencherListas(); carregar();
 }
 
 function desenharOverview(rows){
@@ -1403,9 +1332,7 @@ async function gerar(id){
   await carregarAprovadas(); refrescarSaldo();
 }
 
-// Sempre redesenha o saldo/visão geral, independentemente do filtro selecionado
-// (antes só recarregava se vProj tivesse um valor "truthy" específico — agora é incondicional).
-function refrescarSaldo(){ carregar(); }
+function refrescarSaldo(){ const id=document.getElementById('vProj').value; if(id) carregar(); }
 
 // ----- Exportar extrato (admin/financeiro) no formato da referência -----
 async function exportarExtrato(){
