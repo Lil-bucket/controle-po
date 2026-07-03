@@ -265,7 +265,10 @@
         <div class="field"><label>Início</label><input id="oIni" type="month" /></div>
         <div class="field"><label>Fim</label><input id="oFim" type="month" /></div>
       </div>
-      <button onclick="criarOrcamento()">Criar orçamento</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="btnOrc" onclick="salvarOrcamento()">Criar orçamento</button>
+        <button id="btnCancelOrc" class="ghost" style="display:none" onclick="cancelarEdicaoOrc()">Cancelar edição</button>
+      </div>
       <div id="orcMsg" class="msg"></div>
       <div id="listaOrc" style="margin-top:12px"></div>
     </div>
@@ -770,24 +773,59 @@ async function carregarOrcamentos(){
             <td class="r num">${BRL(o.consumido)}</td>
             <td class="r num" style="color:${Number(o.saldo)<0?'var(--red)':'inherit'}">${BRL(o.saldo)}</td>
             <td class="r num">${o.n_projetos}</td>
-            <td><button class="ghost sm" onclick="excluirOrcamento('${o.id}','${(o.nome||'').replace(/'/g,'')}')">Excluir</button></td>
+            <td style="white-space:nowrap">
+              <button class="ghost sm" onclick="editarOrcamento('${o.id}','${(o.nome||'').replace(/'/g,'')}',${o.valor_total},'${(o.periodo_inicio||'').slice(0,7)}','${(o.periodo_fim||'').slice(0,7)}')">Editar</button>
+              <button class="ghost sm" onclick="excluirOrcamento('${o.id}','${(o.nome||'').replace(/'/g,'')}')">Excluir</button></td>
           </tr>`).join('') + '</tbody></table>';
     }
   }
 }
-async function criarOrcamento(){
+let EDIT_ORC = null;
+function cancelarEdicaoOrc(){
+  EDIT_ORC = null;
+  document.getElementById('oNome').value='';
+  document.getElementById('oValor').value='';
+  document.getElementById('oIni').value='';
+  document.getElementById('oFim').value='';
+  document.getElementById('btnOrc').textContent='Criar orçamento';
+  document.getElementById('btnCancelOrc').style.display='none';
+  show('orcMsg','','');
+}
+function editarOrcamento(id, nome, valor, ini, fim){
+  EDIT_ORC = id;
+  document.getElementById('oNome').value = nome;
+  document.getElementById('oValor').value = BRL(valor);
+  document.getElementById('oIni').value = ini || '';
+  document.getElementById('oFim').value = fim || '';
+  document.getElementById('btnOrc').textContent='Salvar alterações';
+  document.getElementById('btnCancelOrc').style.display='';
+  document.getElementById('cardOrc').scrollIntoView({behavior:'smooth',block:'start'});
+  show('orcMsg','','');
+}
+async function salvarOrcamento(){
   const nome = document.getElementById('oNome').value.trim();
   const valor = parseBRL(document.getElementById('oValor'));
   const ini = document.getElementById('oIni').value;
   const fim = document.getElementById('oFim').value;
   if(!nome){ show('orcMsg','err','Informe o nome do orçamento.'); return; }
   if(!valor){ show('orcMsg','err','Informe o valor total.'); return; }
-  const { error } = await sb.rpc('criar_orcamento', {
-    p_nome:nome, p_valor:valor, p_inicio: ini? ini+'-01': null, p_fim: fim? fim+'-01': null });
-  if(error){ show('orcMsg','err', error.message); return; }
-  show('orcMsg','ok', `Orçamento "${nome}" criado (${BRL(valor)}).`);
-  document.getElementById('oNome').value=''; document.getElementById('oValor').value='';
-  document.getElementById('oIni').value=''; document.getElementById('oFim').value='';
+  if(EDIT_ORC){
+    const { error } = await sb.from('orcamentos').update({
+      nome, valor_total: valor,
+      periodo_inicio: ini ? ini+'-01' : null,
+      periodo_fim:    fim ? fim+'-01' : null
+    }).eq('id', EDIT_ORC);
+    if(error){ show('orcMsg','err', error.message); return; }
+    show('orcMsg','ok', `Orçamento "${nome}" atualizado.`);
+  } else {
+    const { error } = await sb.rpc('criar_orcamento', {
+      p_nome:nome, p_valor:valor,
+      p_inicio: ini ? ini+'-01' : null,
+      p_fim:    fim ? fim+'-01' : null });
+    if(error){ show('orcMsg','err', error.message); return; }
+    show('orcMsg','ok', `Orçamento "${nome}" criado (${BRL(valor)}).`);
+  }
+  cancelarEdicaoOrc();
   carregarOrcamentos();
 }
 async function excluirOrcamento(id, nome){
