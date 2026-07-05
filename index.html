@@ -152,6 +152,28 @@
   @media (max-width:640px){ .ovstats{grid-template-columns:repeat(2,1fr)} .catgrid{grid-template-columns:1fr} }
   .filterbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
   .filterbar .field{margin:0;flex:1;min-width:130px}
+  /* #6 espaçamento label/valor nos cards de categoria */
+  .catcard .cl{gap:14px}
+  .catcard .cl span{color:var(--muted)} .catcard .cl b{white-space:nowrap}
+  /* #6 tabelas largas rolam na horizontal em vez de vazar botões */
+  #posUnificada,#projResumo,#orcDetalhe,#overview,#lista,#listaValidar,#listaAprov,#listaPend,
+  #listaStatusAg,#listaStatusMkt,#listaStatusAll,#meusProjStatus,#listaAprovarProj,#listaPessoas,#meterBox{overflow-x:auto}
+  /* linhas de verba (detalhe admin) com edição inline (#3) */
+  .orcrow{border:1px solid var(--line);border-radius:10px;margin-top:8px;background:#fbfbfc;overflow:hidden}
+  .orcrow-main{display:flex;align-items:center;gap:12px;padding:11px 13px;flex-wrap:wrap}
+  .orcrow-main>.oc{flex:1;min-width:190px}
+  .orcrow-val{font-weight:700;font-family:var(--mono);white-space:nowrap}
+  .orcrow-act{display:flex;gap:6px;flex-wrap:wrap}
+  .orcedit:empty{display:none}
+  .orcedit .card{margin-top:0;border:0;border-top:1px dashed var(--line);border-radius:0;background:#fff}
+  /* modal de detalhe do projeto (#5) */
+  .modal-bg{position:fixed;inset:0;background:rgba(20,22,26,.55);display:none;
+    align-items:flex-start;justify-content:center;z-index:60;padding:24px 14px;overflow-y:auto}
+  .modal-bg.on{display:flex}
+  .modal-card{background:#fff;border-radius:14px;max-width:660px;width:100%;
+    padding:18px 18px 22px;box-shadow:0 24px 70px rgba(0,0,0,.32)}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+  .modal-head b{font-size:16px;letter-spacing:-.01em}
 </style>
 </head>
 <body>
@@ -256,11 +278,13 @@
       <div class="card">
         <h2 style="justify-content:space-between">
           <span style="display:flex;align-items:center;gap:9px"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>Orçamentos por categoria</span>
-          <button class="sm" id="btnNovoOrc" style="display:none" onclick="focarNovoOrcamento()">+ Novo orçamento</button>
+          <button class="sm" id="btnNovoOrc" style="display:none" onclick="abrirNovoOrcamento()">+ Novo orçamento</button>
         </h2>
         <div id="orcCategorias"><div class="empty">Carregando…</div></div>
+        <div id="orcCreateSlot"></div>
+        <div id="orcDetalhe"></div>
       </div>
-      <!-- #cardOrc (formulário admin) é movido para cá por JS -->
+      <!-- #cardOrc (formulário admin) é movido para orcCreateSlot por JS -->
     </section>
 
     <!-- ===== Painel: PROJETOS ===== -->
@@ -357,6 +381,14 @@
       <div id="listaNotif"></div>
     </div>
 
+    <!-- Modal: detalhe completo do projeto (#5) -->
+    <div id="projModal" class="modal-bg" onclick="fecharDetalheProjeto()">
+      <div class="modal-card" onclick="event.stopPropagation()">
+        <div class="modal-head"><b id="pmTitle">Projeto</b><button class="ghost sm" onclick="fecharDetalheProjeto()">Fechar</button></div>
+        <div id="pmBody"></div>
+      </div>
+    </div>
+
     <!-- Marketing: criar projeto -->
     <div class="card" id="cardMkt">
       <h2 id="cardMktTitle"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2Z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg><span id="cardMktTxt">Marketing — criar projeto</span></h2>
@@ -388,7 +420,7 @@
         <div class="field"><label>Categoria de produto</label><select id="oCat" onchange="sugerirNomeOrc()"></select></div>
         <div class="field"><label>Nome do orçamento</label><input id="oNome" placeholder="Ex.: TV 2026" /></div>
       </div>
-      <div class="field"><label>Valor total</label><input id="oValor" type="text" inputmode="numeric" placeholder="R$ 100.000,00" /></div>
+      <div class="field"><label>Valor total liberado (aprovado)</label><input id="oValor" type="text" inputmode="numeric" placeholder="R$ 100.000,00" /></div>
       <div class="row">
         <div class="field"><label>Início</label><input id="oIni" type="month" /></div>
         <div class="field"><label>Fim</label><input id="oFim" type="month" /></div>
@@ -398,7 +430,6 @@
         <button id="btnCancelOrc" class="ghost" style="display:none" onclick="cancelarEdicaoOrc()">Cancelar edição</button>
       </div>
       <div id="orcMsg" class="msg"></div>
-      <div id="listaOrc" style="margin-top:12px"></div>
     </div>
 
     <!-- Admin: Projetos a aprovar -->
@@ -966,6 +997,7 @@ function cancelarEdicaoOrc(){
   document.getElementById('btnOrc').textContent='Criar orçamento';
   document.getElementById('btnCancelOrc').style.display='none';
   show('orcMsg','','');
+  esconderFormOrc();
 }
 function editarOrcamento(id, nome, valor, ini, fim, cat){
   EDIT_ORC = id;
@@ -1428,7 +1460,7 @@ function desenharOverview(rows){
         <span class="num" style="font-size:11.5px;min-width:34px;text-align:right">${pct}%</span></div>`;
     const acao = podeEditar ? `<td style="white-space:nowrap"><button class="ghost sm" onclick="editarProjeto('${r.projeto_id}')">Editar</button><button class="ghost sm" onclick="cancelarProjeto('${r.projeto_id}','${(r.projeto||'').replace(/'/g,'')}')">Cancelar</button></td>` : '';
     return `<tr>
-      <td><a href="#" onclick="mostrarPOsProjeto('${r.projeto_id}');return false" title="ver todas as POs">${r.projeto}</a></td>
+      <td><a href="#" onclick="mostrarDetalheProjeto('${r.projeto_id}');return false" title="ver detalhe do projeto">${r.projeto}</a></td>
       <td class="r num">${BRL(teto)}</td>
       <td class="r num">${BRL(r.comprometido)}</td>
       <td class="r num">${BRL(r.pendente)}</td>
@@ -1913,7 +1945,7 @@ function montarAbas(){
   mv('cardUser','topbar');
   const bell=document.getElementById('bellBtn'), tb=document.getElementById('topbar'); if(bell&&tb) tb.appendChild(bell);
   mv('cardNotif','notifDrop');
-  mv('cardOrc','panel-orcamentos');
+  mv('cardOrc','orcCreateSlot'); const co=document.getElementById('cardOrc'); if(co) co.style.display='none';
   mv('cardMkt','panel-projetos');   const cm=document.getElementById('cardMkt'); if(cm) cm.classList.remove('collapsed','collapsible');
   mv('cardSaldo','panel-projetos');
   mv('cardAg','panel-pos');
@@ -2051,7 +2083,7 @@ async function carregarProjResumo(){
     html+='<table style="margin-top:14px"><thead><tr><th>Projeto</th><th>Cat.</th><th>Atividade</th><th class="r">Orçamento</th><th class="r">Consumido</th><th class="r">Saldo</th><th></th></tr></thead><tbody>'
     + lista.sort((a,b)=>String(a.nome).localeCompare(String(b.nome))).map(p=>{ const x=porProj[p.id]; const s=x.teto-x.cons-x.comp-x.pend;
       return `<tr>
-        <td><a href="#" onclick="verPOsProjetoNaAba('${p.id}');return false" title="ver POs deste projeto">${p.nome}</a></td>
+        <td><a href="#" onclick="mostrarDetalheProjeto('${p.id}');return false" title="ver detalhe do projeto">${p.nome}</a></td>
         <td>${dimDe(p.product_category)||'—'}</td><td class="sub">${p.activity||'—'}</td>
         <td class="r num">${BRL(x.teto)}</td><td class="r num">${BRL(x.cons)}</td>
         <td class="r num" style="${s<0?'color:var(--red)':''}">${BRL(s)}</td>
@@ -2062,24 +2094,89 @@ async function carregarProjResumo(){
 }
 function verPOsProjetoNaAba(id){ abrirAba('pos'); const f=document.getElementById('fPoProj'); if(f){ f.value=id; carregarPOsUnificada(); } }
 
-// --- Orçamentos por categoria (cards) ---
-function carregarOrcamentosCategorias(){
+// --- Detalhe completo do projeto: teto × PO aberta no mês × saldo (#5) ---
+function fecharDetalheProjeto(){ const m=document.getElementById('projModal'); if(m) m.classList.remove('on'); }
+async function mostrarDetalheProjeto(id){
+  const { data: proj } = await sb.from('projetos').select('nome,product_category,activity,agencia,account_desc,aprovacao_status').eq('id',id).single();
+  const { data: tetos } = await sb.from('tetos').select('competencia,teto').eq('projeto_id',id).order('competencia');
+  const { data: pos } = await sb.from('pos').select('competencia,valor,status,numero_po').eq('projeto_id',id);
+  const ATIVA = s => !['REJEITADA','CANCELADA'].includes(s);
+  const poMes={}; (pos||[]).forEach(p=>{ if(!ATIVA(p.status))return; const m=String(p.competencia).slice(0,7); poMes[m]=(poMes[m]||0)+(Number(p.valor)||0); });
+  const linhas=(tetos||[]).map(t=>({m:String(t.competencia).slice(0,7), teto:Number(t.teto)||0}));
+  linhas.forEach(x=>{ if(!(x.m in poMes)) poMes[x.m]=poMes[x.m]||0; });
+  Object.keys(poMes).forEach(m=>{ if(!linhas.some(x=>x.m===m)) linhas.push({m, teto:0}); });
+  linhas.sort((a,b)=>a.m.localeCompare(b.m));
+  let totT=0,totP=0;
+  const body=linhas.map(x=>{ const po=poMes[x.m]||0, sal=x.teto-po; totT+=x.teto; totP+=po;
+    return `<tr><td>${fmtMesLabel(x.m)}</td><td class="r num">${BRL(x.teto)}</td><td class="r num">${BRL(po)}</td><td class="r num" style="${sal<0?'color:var(--red)':''}">${BRL(sal)}</td></tr>`; }).join('');
+  const dim = proj ? (dimDe(proj.product_category)||'—') : '—';
+  document.getElementById('pmTitle').textContent = proj ? proj.nome : (PROJ_NOMES[id]||'Projeto');
+  document.getElementById('pmBody').innerHTML = `
+    <div class="sub" style="margin-bottom:12px">${dim} · ${proj?proj.activity||'—':'—'} · ${proj?proj.agencia||'':''} ${proj&&proj.aprovacao_status!=='APROVADO'?'· <b style="color:var(--amber)">'+proj.aprovacao_status+'</b>':''}</div>
+    <div class="ovstats" style="grid-template-columns:repeat(3,1fr);margin-bottom:10px">
+      <div class="ovstat"><div class="k">Orçamento total</div><div class="v" style="font-size:17px">${BRL(totT)}</div></div>
+      <div class="ovstat"><div class="k">PO aberta</div><div class="v" style="font-size:17px">${BRL(totP)}</div></div>
+      <div class="ovstat"><div class="k">Saldo</div><div class="v" style="font-size:17px;${(totT-totP)<0?'color:var(--red)':''}">${BRL(totT-totP)}</div></div>
+    </div>
+    <div style="overflow-x:auto"><table><thead><tr><th>Mês</th><th class="r">Teto</th><th class="r">PO no mês</th><th class="r">Saldo</th></tr></thead>
+      <tbody>${body||'<tr><td colspan="4" class="empty">Este projeto ainda não tem mensalização.</td></tr>'}
+      <tr style="font-weight:700"><td>Total</td><td class="r num">${BRL(totT)}</td><td class="r num">${BRL(totP)}</td><td class="r num" style="${(totT-totP)<0?'color:var(--red)':''}">${BRL(totT-totP)}</td></tr></tbody></table></div>
+    <div class="sub" style="margin-top:10px;font-size:11.5px">PO no mês = soma das POs ativas (exclui rejeitadas e canceladas).</div>`;
+  document.getElementById('projModal').classList.add('on');
+}
+
+// --- Orçamentos por categoria: Aprovado = Σ verbas liberadas · Consumido = Σ tetos dos projetos aprovados (#1,#4) ---
+async function carregarOrcamentosCategorias(){
   const box=document.getElementById('orcCategorias'); if(!box) return;
-  if(!ORCS_CACHE.length){ box.innerHTML='<div class="empty">Nenhum orçamento criado ainda.'+(PAPEL==='admin'?' Crie a primeira verba abaixo, por categoria.':'')+'</div>'; return; }
-  const grp={}; DIMENSOES.forEach(d=>grp[d]={tot:0,cons:0,saldo:0,n:0,verbas:0});
-  let outros=null;
-  ORCS_CACHE.forEach(o=>{ const d=dimDe(o.product_category); const g = grp[d] || (outros||(outros={tot:0,cons:0,saldo:0,n:0,verbas:0}));
-    g.tot+=Number(o.valor_total)||0; g.cons+=Number(o.consumido)||0; g.saldo+=Number(o.saldo)||0; g.n+=Number(o.n_projetos)||0; g.verbas+=1; });
-  const card=(nome,g)=>{ const pct=g.tot>0?Math.round(g.cons/g.tot*100):0; const cor=pct>=90?'var(--red)':(pct>=70?'var(--amber)':'var(--green)');
-    return `<div class="catcard"><div class="cn">${nome}<span class="pill-cat">${g.verbas} verba(s) · ${g.n} proj.</span></div>
-      <div class="cl"><span>Valor total</span><b>${BRL(g.tot)}</b></div>
-      <div class="cl"><span>Consumido/aprovado</span><b>${BRL(g.cons)}</b></div>
-      <div class="cl"><span>Saldo</span><b style="${g.saldo<0?'color:var(--red)':''}">${BRL(g.saldo)}</b></div>
+  const { data: orcs }  = await sb.from('orcamentos').select('id,valor_total,product_category');
+  const { data: projs } = await sb.from('projetos').select('id,product_category,aprovacao_status').eq('aprovacao_status','APROVADO');
+  const { data: tetos } = await sb.from('tetos').select('projeto_id,teto');
+  const tetoProj={}; (tetos||[]).forEach(t=>{ tetoProj[t.projeto_id]=(tetoProj[t.projeto_id]||0)+(Number(t.teto)||0); });
+  const aprov={},cons={},nb={},np={}; DIMENSOES.forEach(d=>{aprov[d]=0;cons[d]=0;nb[d]=0;np[d]=0;});
+  let outros=null; const O=()=>outros||(outros={aprov:0,cons:0,nb:0,np:0});
+  (orcs||[]).forEach(o=>{ const d=dimDe(o.product_category); if(DIMENSOES.includes(d)){aprov[d]+=Number(o.valor_total)||0;nb[d]++;} else {const g=O();g.aprov+=Number(o.valor_total)||0;g.nb++;} });
+  (projs||[]).forEach(p=>{ const d=dimDe(p.product_category); const t=tetoProj[p.id]||0; if(DIMENSOES.includes(d)){cons[d]+=t;np[d]++;} else {const g=O();g.cons+=t;g.np++;} });
+  const dims=DIMENSOES.filter(d=> aprov[d]>0||cons[d]>0||nb[d]>0||np[d]>0);   // só categorias em uso
+  const card=(nome,ap,co,vb,pj)=>{ const sal=ap-co, pct=ap>0?Math.round(co/ap*100):0; const cor=pct>=90?'var(--red)':(pct>=70?'var(--amber)':'var(--green)');
+    return `<div class="catcard"><div class="cn">${nome}<span class="pill-cat">${vb} verba(s) · ${pj} proj.</span></div>
+      <div class="cl"><span>Aprovado (liberado)</span><b>${BRL(ap)}</b></div>
+      <div class="cl"><span>Consumido (projetos)</span><b>${BRL(co)}</b></div>
+      <div class="cl"><span>Saldo</span><b style="${sal<0?'color:var(--red)':''}">${BRL(sal)}</b></div>
       <div class="bar-mini" style="margin-top:10px"><span style="width:${Math.min(100,pct)}%;background:${cor}"></span></div>
       <div class="sub" style="text-align:right;font-size:11.5px;margin-top:3px">${pct}% consumido</div></div>`; };
-  let cards=DIMENSOES.map(d=>card(d,grp[d])).join('');
-  if(outros) cards+=card('Outros / sem categoria', outros);
-  box.innerHTML='<div class="catgrid">'+cards+'</div>';
+  let cards=dims.map(d=>card(d,aprov[d],cons[d],nb[d],np[d])).join('');
+  if(outros) cards+=card('Outros / sem categoria',outros.aprov,outros.cons,outros.nb,outros.np);
+  box.innerHTML = cards ? '<div class="catgrid">'+cards+'</div>'
+    : '<div class="empty">Nenhuma verba ou projeto ainda.'+(PAPEL==='admin'?' Crie a primeira verba com "+ Novo orçamento".':'')+'</div>';
+  renderOrcDetalhe();
+}
+// Detalhe (admin): cada verba com editar inline (#3)
+function renderOrcDetalhe(){
+  const box=document.getElementById('orcDetalhe'); if(!box) return;
+  if(PAPEL!=='admin' || !ORCS_CACHE.length){ box.innerHTML=''; return; }
+  const per=o=>(o.periodo_inicio||'—').slice(0,7)+' → '+(o.periodo_fim||'—').slice(0,7);
+  box.innerHTML='<div class="sub" style="margin:18px 0 4px;font-weight:700;text-transform:uppercase;letter-spacing:.06em">Verbas liberadas</div>'
+    + ORCS_CACHE.slice().sort((a,b)=>String(a.product_category||'zz').localeCompare(String(b.product_category||'zz'))).map(o=>`
+      <div class="orcrow">
+        <div class="orcrow-main">
+          <div class="oc"><b>${o.product_category||'— sem categoria —'}</b> · ${o.nome} <span class="sub">(${per(o)})</span></div>
+          <div class="orcrow-val">${BRL(o.valor_total)}</div>
+          <div class="orcrow-act">
+            <button class="ghost sm" onclick="editarOrcamentoInline('${o.id}')">Editar</button>
+            <button class="ghost sm" onclick="excluirOrcamento('${o.id}','${(o.nome||'').replace(/'/g,'')}')">Excluir</button>
+          </div>
+        </div>
+        <div class="orcedit" id="orcedit_${o.id}"></div>
+      </div>`).join('');
+}
+function esconderFormOrc(){ const f=document.getElementById('cardOrc'); if(!f) return; f.style.display='none'; const home=document.getElementById('orcCreateSlot'); if(home) home.appendChild(f); }
+function abrirNovoOrcamento(){ cancelarEdicaoOrc(); const f=document.getElementById('cardOrc'), home=document.getElementById('orcCreateSlot');
+  if(f&&home){ home.appendChild(f); f.style.display=''; document.getElementById('cardMktTitle'); f.scrollIntoView({behavior:'smooth',block:'center'}); const s=document.getElementById('oCat'); if(s) setTimeout(()=>s.focus(),200); } }
+function editarOrcamentoInline(id){
+  const o=ORCS_CACHE.find(x=>x.id===id); if(!o) return;
+  editarOrcamento(id, o.nome, o.valor_total, (o.periodo_inicio||'').slice(0,7), (o.periodo_fim||'').slice(0,7), o.product_category||'');
+  const slot=document.getElementById('orcedit_'+id), f=document.getElementById('cardOrc');
+  if(slot&&f){ slot.appendChild(f); f.style.display=''; f.scrollIntoView({behavior:'smooth',block:'center'}); }
 }
 
 // --- Overview: KPIs + 3 gráficos (fonte: saldo_mensal, reconcilia com o extrato) ---
