@@ -6,6 +6,7 @@
 <title>Controle de PO</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <style>
   :root{
     --bg:#f1f2f4; --card:#ffffff; --ink:#1a1a1a; --muted:#6b6f76;
@@ -113,6 +114,44 @@
   .pill-signup{background:#fdecd6;color:#9a6207}
   .bar-mini{flex:1;height:9px;background:#eef0f3;border-radius:5px;overflow:hidden;min-width:54px}
   .bar-mini > span{display:block;height:100%}
+  /* ===== topbar: usuário + sino ===== */
+  #topbar{display:flex;align-items:center;gap:12px;margin-top:16px}
+  #topbar #cardUser{flex:1;margin-top:0}
+  .bellbtn{position:relative;width:44px;height:44px;flex:0 0 44px;border-radius:12px;border:1px solid var(--line);
+    background:#fff;color:var(--ink);display:grid;place-items:center;cursor:pointer;padding:0}
+  .bellbtn:hover{background:#f4f5f6}
+  .bellbtn svg{width:20px;height:20px}
+  .bellbadge{position:absolute;top:-6px;right:-6px;min-width:19px;height:19px;padding:0 5px;border-radius:20px;
+    background:var(--teal);color:#fff;font-size:11px;font-weight:800;display:none;align-items:center;justify-content:center;line-height:19px}
+  .bellbadge.on{display:flex}
+  #notifDrop{display:none;margin-top:10px}
+  #notifDrop.on{display:block}
+  /* ===== barra de abas ===== */
+  #tabbar{display:flex;gap:6px;margin-top:16px;flex-wrap:wrap;
+    background:#fff;border:1px solid var(--line);border-radius:13px;padding:6px}
+  .tabbtn{flex:1 1 auto;min-width:96px;background:transparent;color:var(--muted);border:0;
+    font-weight:700;font-size:13px;padding:11px 10px;border-radius:9px;cursor:pointer;letter-spacing:.01em}
+  .tabbtn:hover{background:#f4f5f6;color:var(--ink)}
+  .tabbtn.active{background:var(--teal);color:#fff}
+  .tabbtn.active:hover{background:var(--teal-d)}
+  .tabbtn .tbdot{display:none;width:7px;height:7px;border-radius:50%;background:var(--amber);margin-left:6px;vertical-align:1px}
+  .tabbtn.hasnew .tbdot{display:inline-block}
+  .tabbtn.active .tbdot{background:#fff}
+  .panel{display:none} .panel.active{display:block}
+  /* ===== overview: cards de estatística + categoria ===== */
+  .ovstats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:4px}
+  .ovstat{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:15px 16px}
+  .ovstat .k{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700}
+  .ovstat .v{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:21px;font-weight:800;margin-top:6px}
+  .catgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .catcard{border:1px solid var(--line);border-radius:12px;padding:14px 15px;background:#fbfbfc}
+  .catcard .cn{font-weight:800;font-size:15px;letter-spacing:.02em;display:flex;align-items:center;justify-content:space-between}
+  .catcard .cn .pill-cat{font-size:11px;font-weight:700;color:var(--muted)}
+  .catcard .cl{display:flex;justify-content:space-between;font-size:12.5px;margin-top:8px;color:var(--muted)}
+  .catcard .cl b{color:var(--ink);font-family:var(--mono)}
+  @media (max-width:640px){ .ovstats{grid-template-columns:repeat(2,1fr)} .catgrid{grid-template-columns:1fr} }
+  .filterbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .filterbar .field{margin:0;flex:1;min-width:130px}
 </style>
 </head>
 <body>
@@ -171,6 +210,94 @@
 
   <!-- App -->
   <div id="app" class="hidden">
+
+    <!-- ===== Topbar: usuário + sino de notificações ===== -->
+    <div id="topbar">
+      <!-- #cardUser é movido para cá por JS -->
+      <button class="bellbtn" id="bellBtn" onclick="toggleNotifDrop()" title="Notificações" aria-label="Notificações">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+        <span class="bellbadge" id="bellBadge">0</span>
+      </button>
+    </div>
+    <div id="notifDrop"><!-- #cardNotif é movido para cá por JS --></div>
+
+    <!-- ===== Barra de abas ===== -->
+    <nav id="tabbar">
+      <button class="tabbtn" data-tab="overview"   onclick="abrirAba('overview')">Overview</button>
+      <button class="tabbtn" data-tab="orcamentos" onclick="abrirAba('orcamentos')">Orçamentos</button>
+      <button class="tabbtn" data-tab="projetos"   onclick="abrirAba('projetos')">Projetos</button>
+      <button class="tabbtn" data-tab="pos"         onclick="abrirAba('pos')">POs</button>
+      <button class="tabbtn" data-tab="aprovacoes" onclick="abrirAba('aprovacoes')">Aprovações<span class="tbdot"></span></button>
+    </nav>
+
+    <!-- ===== Painel: OVERVIEW ===== -->
+    <section class="panel" id="panel-overview">
+      <div class="ovstats" id="ovStats"></div>
+      <div class="card">
+        <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>Orçamento por mês</h2>
+        <div class="sub" style="margin:-6px 0 10px">Teto mensal repartido em comprometido (POs aprovadas em diante), pendente (em aprovação) e saldo.</div>
+        <div style="position:relative;height:300px"><canvas id="chartMes"></canvas></div>
+      </div>
+      <div class="card">
+        <h2 style="justify-content:space-between">
+          <span style="display:flex;align-items:center;gap:9px"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="9" width="3" height="9"/><rect x="14" y="5" width="3" height="13"/></svg>Por atividade</span>
+          <select id="ovCatFiltro" onchange="carregarOverviewDash()" style="max-width:180px;font-size:13px"></select>
+        </h2>
+        <div style="position:relative;height:280px"><canvas id="chartAtiv"></canvas></div>
+      </div>
+      <div class="card">
+        <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>Por categoria de produto</h2>
+        <div style="position:relative;height:280px"><canvas id="chartCat"></canvas></div>
+      </div>
+    </section>
+
+    <!-- ===== Painel: ORÇAMENTOS ===== -->
+    <section class="panel" id="panel-orcamentos">
+      <div class="card">
+        <h2 style="justify-content:space-between">
+          <span style="display:flex;align-items:center;gap:9px"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>Orçamentos por categoria</span>
+          <button class="sm" id="btnNovoOrc" style="display:none" onclick="focarNovoOrcamento()">+ Novo orçamento</button>
+        </h2>
+        <div id="orcCategorias"><div class="empty">Carregando…</div></div>
+      </div>
+      <!-- #cardOrc (formulário admin) é movido para cá por JS -->
+    </section>
+
+    <!-- ===== Painel: PROJETOS ===== -->
+    <section class="panel" id="panel-projetos">
+      <div class="card" id="cardProjResumo">
+        <h2 style="justify-content:space-between">
+          <span style="display:flex;align-items:center;gap:9px"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2Z"/></svg>Projetos</span>
+          <button class="sm" id="btnNovoProj" style="display:none" onclick="focarNovoProjeto()">+ Novo projeto</button>
+        </h2>
+        <div class="filterbar">
+          <div class="field"><label>Filtrar por categoria</label><select id="projFiltroCat" onchange="carregarProjResumo()"></select></div>
+        </div>
+        <div id="projResumo"><div class="empty">Carregando…</div></div>
+      </div>
+      <!-- #cardMkt (criar/editar projeto) e #cardSaldo (extrato mensal) movidos para cá por JS -->
+    </section>
+
+    <!-- ===== Painel: POs ===== -->
+    <section class="panel" id="panel-pos">
+      <div class="card" id="cardPosLista">
+        <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>Ordens de compra</h2>
+        <div class="filterbar">
+          <div class="field"><label>Categoria</label><select id="fPoCat" onchange="carregarPOsUnificada()"></select></div>
+          <div class="field"><label>Projeto</label><select id="fPoProj" onchange="carregarPOsUnificada()"></select></div>
+          <div class="field"><label>Agência</label><select id="fPoAg" onchange="carregarPOsUnificada()"></select></div>
+          <div class="field"><label>Status</label><select id="fPoStatus" onchange="carregarPOsUnificada()"></select></div>
+        </div>
+        <div id="posUnificada"><div class="empty">Carregando…</div></div>
+      </div>
+      <!-- #cardAg (agência solicita) e #cardStatusAg (agência fatura) movidos para cá por JS -->
+    </section>
+
+    <!-- ===== Painel: APROVAÇÕES ===== -->
+    <section class="panel" id="panel-aprovacoes">
+      <div id="aprovVazio" class="card" style="display:none"><div class="empty">Nenhuma aprovação pendente para o seu perfil no momento.</div></div>
+      <!-- cards de aprovação (cardAprovarProj, cardAprovar, cardGerar, cardValidar, cardPessoas) movidos para cá por JS -->
+    </section>
 
     <div class="card" id="cardUser" style="padding:14px 16px">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
@@ -238,7 +365,7 @@
       <div id="orcHint" class="sub" style="margin:-4px 0 12px"></div>
       <div class="field"><label>Agência responsável</label><select id="pAgencia" onchange="atualizarAtividades()"></select></div>
       <div class="row">
-        <div class="field"><label>Categoria de produto</label><select id="pCat" onchange="previewClassificacao()"></select></div>
+        <div class="field"><label>Categoria de produto</label><select id="pCat" onchange="previewClassificacao();filtrarOrcamentosPorCategoria()"></select></div>
         <div class="field"><label>Atividade</label><select id="pAtiv" onchange="previewClassificacao()"></select></div>
       </div>
       <div class="field"><label>Projeto (classificação)</label><select id="pProjTag" onchange="previewClassificacao()"></select></div>
@@ -256,11 +383,12 @@
 
     <!-- Admin: Orçamentos -->
     <div class="card" id="cardOrc">
-      <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>Orçamentos</h2>
+      <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>Criar / editar orçamento</h2>
       <div class="row">
-        <div class="field"><label>Nome</label><input id="oNome" placeholder="Ex.: Gamescom 2026" /></div>
-        <div class="field"><label>Valor total</label><input id="oValor" type="text" inputmode="numeric" placeholder="R$ 100.000,00" /></div>
+        <div class="field"><label>Categoria de produto</label><select id="oCat" onchange="sugerirNomeOrc()"></select></div>
+        <div class="field"><label>Nome do orçamento</label><input id="oNome" placeholder="Ex.: TV 2026" /></div>
       </div>
+      <div class="field"><label>Valor total</label><input id="oValor" type="text" inputmode="numeric" placeholder="R$ 100.000,00" /></div>
       <div class="row">
         <div class="field"><label>Início</label><input id="oIni" type="month" /></div>
         <div class="field"><label>Fim</label><input id="oFim" type="month" /></div>
@@ -587,6 +715,9 @@ async function abrirApp(session){
     ['cardNotif','cardSaldo','cardMkt','cardPessoas','cardAprovar','cardStatusMkt',
      'cardStatusAll','cardGerar','cardValidar','cardAg','cardStatusAg']
       .forEach(id=>{ const c=document.getElementById(id); if(c) c.style.display='none'; });
+    const tbar=document.getElementById('tabbar'); if(tbar) tbar.style.display='none';
+    const top=document.getElementById('topbar'); if(top) top.style.display='none';
+    document.querySelectorAll('.panel').forEach(p=>p.style.display='none');
     return;
   }
 
@@ -599,12 +730,13 @@ async function abrirApp(session){
     elAg.style.background = '#f3f4f6';
   }
 
-  layoutPorPapel(papel);
+  montarAbas();
+  configurarAbasPorPapel(papel);
 
   if(papel === 'marketing'){
     carregarPendentes(); carregarAgencias(); preencherListas();
     document.getElementById('mesesBox').innerHTML=''; addMesRow();
-    carregarStatusMkt(); carregarOrcamentos(); carregarMeusProjStatus();
+    carregarStatusMkt(); carregarMeusProjStatus();
   }
   if(papel === 'financeiro'){ carregarAprovadas(); carregarValidar(); }
   if(papel === 'agencia'){ carregarStatusAg(); }
@@ -612,11 +744,23 @@ async function abrirApp(session){
     carregarPessoas(); carregarAprovadas(); carregarValidar();
     carregarPendentes(); carregarAgencias(); preencherListas();
     document.getElementById('mesesBox').innerHTML=''; addMesRow();
-    carregarStatusAll(); carregarOrcamentos(); carregarProjetosAprovar();
+    carregarStatusAll(); carregarProjetosAprovar();
   }
 
+  // ---- dados das abas (comuns a todos os papéis válidos) ----
+  await carregarProjetos();       // popula PROJ_NOMES / MEUS_PROJ_IDS
+  await carregarOrcamentos();     // cache de orçamentos + categorias
+  preencherOpcoesFixas();
+  preencherFiltrosPOs();
+  carregarPOsUnificada();
+  carregarProjResumo();
+  carregarOrcamentosCategorias();
+  if(TABS_VISIVEIS.includes('overview')) carregarOverviewDash();
+  carregarNotificacoes();
+  atualizarBadgeAprov();
+
   assinarMudancas();
-  carregarProjetos();
+  abrirAba(abaInicial(papel));
 }
 
 // Define quais blocos aparecem, em que ordem, e quais começam colapsados.
@@ -748,41 +892,73 @@ async function carregarProjetos(){
   carregar();
 }
 
-// ----- Orçamentos (camada acima dos projetos) -----
+// ----- Orçamentos (camada acima dos projetos, ancorados na categoria) -----
+let ORCS_CACHE = [];   // [{id,nome,valor_total,consumido,saldo,n_projetos,periodo_inicio,periodo_fim,product_category}]
 async function carregarOrcamentos(){
   const { data, error } = await sb.rpc('orcamentos_resumo');
   const orcs = error ? [] : (data || []);
-  // popular o seletor no formulário de projeto
-  const sel = document.getElementById('pOrc');
-  if(sel){
-    const atual = sel.value;
-    sel.innerHTML = '<option value="">Selecione o orçamento</option>' +
-      orcs.map(o=>`<option value="${o.id}">${o.nome} — saldo ${BRL(o.saldo)}</option>`).join('');
-    if(atual) sel.value = atual;
-  }
-  // lista do admin
+  // categoria de cada orçamento (coluna product_category, lida direto da tabela)
+  let catPorId = {};
+  try{
+    const { data: cats } = await sb.from('orcamentos').select('id,product_category');
+    (cats||[]).forEach(c => { catPorId[c.id] = c.product_category || ''; });
+  }catch(_){}
+  ORCS_CACHE = orcs.map(o => ({ ...o, product_category: catPorId[o.id] || '' }));
+
+  filtrarOrcamentosPorCategoria();   // popula o seletor do formulário de projeto
+
+  // lista do admin (com categoria)
   const box = document.getElementById('listaOrc');
   if(box){
-    if(!orcs.length){ box.innerHTML = '<div class="empty">Nenhum orçamento criado ainda.</div>'; }
+    if(!ORCS_CACHE.length){ box.innerHTML = '<div class="empty">Nenhum orçamento criado ainda.</div>'; }
     else {
       const per = o => (o.periodo_inicio||'—').slice(0,7)+' → '+(o.periodo_fim||'—').slice(0,7);
-      box.innerHTML = '<table><thead><tr><th>Orçamento</th><th>Período</th><th class="r">Total</th><th class="r">Consumido</th><th class="r">Saldo</th><th class="r">Proj.</th><th></th></tr></thead><tbody>'
-        + orcs.map(o=>`<tr>
+      box.innerHTML = '<table><thead><tr><th>Categoria</th><th>Orçamento</th><th>Período</th><th class="r">Total</th><th class="r">Consumido</th><th class="r">Saldo</th><th class="r">Proj.</th><th></th></tr></thead><tbody>'
+        + ORCS_CACHE.map(o=>`<tr>
+            <td><b>${o.product_category||'<span class="sub">— sem —</span>'}</b></td>
             <td>${o.nome}</td><td class="sub">${per(o)}</td>
             <td class="r num">${BRL(o.valor_total)}</td>
             <td class="r num">${BRL(o.consumido)}</td>
             <td class="r num" style="color:${Number(o.saldo)<0?'var(--red)':'inherit'}">${BRL(o.saldo)}</td>
             <td class="r num">${o.n_projetos}</td>
             <td style="white-space:nowrap">
-              <button class="ghost sm" onclick="editarOrcamento('${o.id}','${(o.nome||'').replace(/'/g,'')}',${o.valor_total},'${(o.periodo_inicio||'').slice(0,7)}','${(o.periodo_fim||'').slice(0,7)}')">Editar</button>
+              <button class="ghost sm" onclick="editarOrcamento('${o.id}','${(o.nome||'').replace(/'/g,'')}',${o.valor_total},'${(o.periodo_inicio||'').slice(0,7)}','${(o.periodo_fim||'').slice(0,7)}','${o.product_category||''}')">Editar</button>
               <button class="ghost sm" onclick="excluirOrcamento('${o.id}','${(o.nome||'').replace(/'/g,'')}')">Excluir</button></td>
           </tr>`).join('') + '</tbody></table>';
     }
   }
 }
+// Filtra o seletor #pOrc pela dimensão da categoria escolhida no formulário de projeto
+function filtrarOrcamentosPorCategoria(){
+  const sel = document.getElementById('pOrc');
+  if(!sel) return;
+  const atual = sel.value;
+  const catProj = (document.getElementById('pCat')||{}).value || '';
+  const dim = catProj ? dimDe(catProj) : '';
+  let lista = ORCS_CACHE;
+  if(dim){
+    lista = ORCS_CACHE.filter(o => dimDe(o.product_category) === dim || (o.product_category||'') === dim);
+    // ao editar, garante que o orçamento atual do projeto apareça mesmo que a categoria não bata
+    if(atual && !lista.some(o=>o.id===atual)){
+      const extra = ORCS_CACHE.find(o=>o.id===atual);
+      if(extra) lista = [extra, ...lista];
+    }
+  }
+  sel.innerHTML = '<option value="">'+(dim? 'Verba da categoria '+dim : 'Selecione a categoria do projeto primeiro')+'</option>' +
+    lista.map(o=>`<option value="${o.id}">${o.nome} — saldo ${BRL(o.saldo)}</option>`).join('');
+  if(atual && lista.some(o=>o.id===atual)) sel.value = atual;
+  else if(lista.length===1 && dim) sel.value = lista[0].id;
+  if(typeof mostrarSaldoOrc==='function') mostrarSaldoOrc();
+}
 let EDIT_ORC = null;
+function sugerirNomeOrc(){
+  const cat = document.getElementById('oCat').value;
+  const nomeEl = document.getElementById('oNome');
+  if(cat && !EDIT_ORC && !nomeEl.value.trim()){ nomeEl.value = cat + ' 2026'; }
+}
 function cancelarEdicaoOrc(){
   EDIT_ORC = null;
+  document.getElementById('oCat').value='';
   document.getElementById('oNome').value='';
   document.getElementById('oValor').value='';
   document.getElementById('oIni').value='';
@@ -791,8 +967,9 @@ function cancelarEdicaoOrc(){
   document.getElementById('btnCancelOrc').style.display='none';
   show('orcMsg','','');
 }
-function editarOrcamento(id, nome, valor, ini, fim){
+function editarOrcamento(id, nome, valor, ini, fim, cat){
   EDIT_ORC = id;
+  document.getElementById('oCat').value = cat || '';
   document.getElementById('oNome').value = nome;
   document.getElementById('oValor').value = BRL(valor);
   document.getElementById('oIni').value = ini || '';
@@ -803,30 +980,41 @@ function editarOrcamento(id, nome, valor, ini, fim){
   show('orcMsg','','');
 }
 async function salvarOrcamento(){
+  const cat = document.getElementById('oCat').value;
   const nome = document.getElementById('oNome').value.trim();
   const valor = parseBRL(document.getElementById('oValor'));
   const ini = document.getElementById('oIni').value;
   const fim = document.getElementById('oFim').value;
+  if(!cat){ show('orcMsg','err','Escolha a categoria de produto do orçamento.'); return; }
   if(!nome){ show('orcMsg','err','Informe o nome do orçamento.'); return; }
   if(!valor){ show('orcMsg','err','Informe o valor total.'); return; }
   if(EDIT_ORC){
     const { error } = await sb.from('orcamentos').update({
-      nome, valor_total: valor,
+      nome, valor_total: valor, product_category: cat,
       periodo_inicio: ini ? ini+'-01' : null,
       periodo_fim:    fim ? fim+'-01' : null
     }).eq('id', EDIT_ORC);
     if(error){ show('orcMsg','err', error.message); return; }
-    show('orcMsg','ok', `Orçamento "${nome}" atualizado.`);
+    show('orcMsg','ok', `Orçamento "${nome}" (${cat}) atualizado.`);
   } else {
-    const { error } = await sb.rpc('criar_orcamento', {
+    const { data: novo, error } = await sb.rpc('criar_orcamento', {
       p_nome:nome, p_valor:valor,
       p_inicio: ini ? ini+'-01' : null,
       p_fim:    fim ? fim+'-01' : null });
     if(error){ show('orcMsg','err', error.message); return; }
-    show('orcMsg','ok', `Orçamento "${nome}" criado (${BRL(valor)}).`);
+    // grava a categoria na verba recém-criada (a RPC não recebe categoria)
+    let novoId = (typeof novo === 'string') ? novo : (novo && novo.id) ? novo.id : null;
+    if(!novoId){
+      const { data: achado } = await sb.from('orcamentos').select('id')
+        .eq('nome', nome).is('product_category', null).limit(1);
+      novoId = achado && achado[0] ? achado[0].id : null;
+    }
+    if(novoId){ await sb.from('orcamentos').update({ product_category: cat }).eq('id', novoId); }
+    show('orcMsg','ok', `Orçamento "${nome}" (${cat}) criado (${BRL(valor)}).`+(novoId?'':' Atenção: não consegui gravar a categoria automaticamente — edite a verba e selecione a categoria.'));
   }
   cancelarEdicaoOrc();
-  carregarOrcamentos();
+  await carregarOrcamentos();
+  carregarOrcamentosCategorias();
 }
 async function excluirOrcamento(id, nome){
   if(!confirm('Excluir o orçamento "'+(nome||'')+'"?\n(Só é possível se nenhum projeto estiver vinculado a ele.)')) return;
@@ -861,14 +1049,14 @@ async function carregarProjetosAprovar(){
 async function aprovarProjeto(id){
   const { error } = await sb.rpc('aprovar_projeto', { p_projeto:id });
   if(error){ alert(error.message); return; }
-  carregarProjetosAprovar(); carregarOrcamentos(); await carregarProjetos();
+  carregarProjetosAprovar(); carregarOrcamentos(); await carregarProjetos(); refrescarAbas();
 }
 async function rejeitarProjeto(id){
   const motivo = prompt('Motivo da rejeição do projeto:');
   if(motivo===null) return;
   const { error } = await sb.rpc('rejeitar_projeto', { p_projeto:id, p_motivo:motivo });
   if(error){ alert(error.message); return; }
-  carregarProjetosAprovar(); carregarOrcamentos(); await carregarProjetos();
+  carregarProjetosAprovar(); carregarOrcamentos(); await carregarProjetos(); refrescarAbas();
 }
 
 // ----- Marketing: status de aprovação dos meus projetos -----
@@ -1078,6 +1266,7 @@ async function criarProjeto(){
   await carregarProjetos();   // aguarda — recarrega MEUS_PROJ_IDS e redesenha o saldo
   carregarOrcamentos(); carregarMeusProjStatus();
   if(PAPEL==='admin') carregarProjetosAprovar();
+  preencherFiltrosPOs(); refrescarAbas();
 }
 
 async function editarProjeto(id){
@@ -1170,6 +1359,7 @@ async function solicitar(){
   }
   carregar();
   if(PAPEL === 'agencia') carregarStatusAg();
+  refrescarAbas();
 }
 
 async function mostrarAprovador(){
@@ -1370,7 +1560,7 @@ async function gerar(id){
   await carregarAprovadas(); refrescarSaldo();
 }
 
-function refrescarSaldo(){ const id=document.getElementById('vProj').value; if(id) carregar(); }
+function refrescarSaldo(){ const id=document.getElementById('vProj').value; if(id) carregar(); if(typeof refrescarAbas==='function') refrescarAbas(); }
 
 // ----- Exportar extrato (admin/financeiro) no formato da referência -----
 async function exportarExtrato(){
@@ -1582,7 +1772,7 @@ async function enviarNf(poId){
   const { data, error } = await sb.rpc('faturar_po', { p_po: poId, p_fatura: nfPath, p_evidencia: evPath, p_nf_numero: num });
   if(error){ alert(error.message); return; }
   const venc = (data && data.vencimento) ? fmtData(data.vencimento) : '';
-  carregarStatusAg();
+  carregarStatusAg(); refrescarAbas();
   if(venc) alert('Faturamento enviado. Vencimento da NF: '+venc+'.');
 }
 
@@ -1652,7 +1842,10 @@ async function carregarNotificacoes(){
   const box = document.getElementById('listaNotif');
   const { data, error } = await sb.from('notificacoes').select('*')
     .eq('lida', false).order('criada_em',{ascending:false});
-  if(error){ box.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
+  if(error){ if(box) box.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
+  const n=(data||[]).length;
+  const badge=document.getElementById('bellBadge'); if(badge){ badge.textContent = n>99?'99+':String(n); badge.classList.toggle('on', n>0); }
+  if(!box) return;
   if(!data || !data.length){ box.innerHTML='<div class="empty">Nenhuma notificação nova.</div>'; return; }
   box.innerHTML = data.map(n=>`
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)">
@@ -1688,9 +1881,279 @@ function assinarMudancas(){
   try{
     sb.channel('mud')
       .on('postgres_changes', { event:'INSERT', schema:'public', table:'notificacoes' },
-          () => { refrescarFilas(); destacarMudancas(); })
+          () => { refrescarFilas(); destacarMudancas(); if(typeof refrescarAbas==='function') refrescarAbas(); carregarNotificacoes(); })
       .subscribe();
   }catch(_){}
+}
+
+// ============================================================
+//  NAVEGAÇÃO EM ABAS · DIMENSÕES DE CATEGORIA · NOVAS VISÕES
+// ============================================================
+
+// categoria fina (9) -> dimensão de orçamento (6). MON é subcategoria de TV.
+const CAT_DIM = {'TV':'TV','MON':'TV','AC':'AC','REF':'REF','WM':'WM','MOB':'MOB',
+  'TV-LABG':'LABG','Copa- LABG':'LABG','SQD - LABG':'LABG'};
+const DIMENSOES = ['TV','AC','MOB','REF','WM','LABG'];
+function dimDe(cat){ if(!cat) return ''; return CAT_DIM[cat] || (DIMENSOES.includes(cat)?cat:'Outros'); }
+
+const ABAS_POR_PAPEL = {
+  admin:      ['overview','orcamentos','projetos','pos','aprovacoes'],
+  financeiro: ['overview','orcamentos','projetos','pos','aprovacoes'],
+  marketing:  ['overview','orcamentos','projetos','pos','aprovacoes'],
+  agencia:    ['projetos','pos']
+};
+let TABS_VISIVEIS = [];
+function abaInicial(papel){ return papel==='agencia' ? 'pos' : 'overview'; }
+
+// --- monta as abas: move os cards existentes para os painéis certos (uma vez) ---
+let _abasMontadas = false;
+function mv(id, destino){ const el=document.getElementById(id), d=document.getElementById(destino); if(el&&d) d.appendChild(el); }
+function montarAbas(){
+  if(_abasMontadas) return; _abasMontadas = true;
+  mv('cardUser','topbar');
+  const bell=document.getElementById('bellBtn'), tb=document.getElementById('topbar'); if(bell&&tb) tb.appendChild(bell);
+  mv('cardNotif','notifDrop');
+  mv('cardOrc','panel-orcamentos');
+  mv('cardMkt','panel-projetos');   const cm=document.getElementById('cardMkt'); if(cm) cm.classList.remove('collapsed','collapsible');
+  mv('cardSaldo','panel-projetos');
+  mv('cardAg','panel-pos');
+  mv('cardStatusAg','panel-pos');
+  mv('cardStatusMkt','panel-pos'); mv('cardStatusAll','panel-pos');   // ficam ocultos (a lista unificada substitui)
+  mv('cardAprovarProj','panel-aprovacoes');
+  mv('cardAprovar','panel-aprovacoes');
+  mv('cardGerar','panel-aprovacoes');
+  mv('cardValidar','panel-aprovacoes');
+  mv('cardPessoas','panel-aprovacoes');
+}
+function mostrar(id,on){ const e=document.getElementById(id); if(e) e.style.display = on?'':'none'; }
+function configurarAbasPorPapel(papel){
+  TABS_VISIVEIS = ABAS_POR_PAPEL[papel] || [];
+  document.querySelectorAll('#tabbar .tabbtn').forEach(b=>{ b.style.display = TABS_VISIVEIS.includes(b.dataset.tab)?'':'none'; });
+  const admin=papel==='admin', fin=papel==='financeiro', mkt=papel==='marketing', ag=papel==='agencia';
+  // Orçamentos
+  mostrar('cardOrc', admin);
+  const bno=document.getElementById('btnNovoOrc'); if(bno) bno.style.display = admin?'':'none';
+  // Projetos
+  mostrar('cardMkt', mkt||admin);
+  const bnp=document.getElementById('btnNovoProj'); if(bnp) bnp.style.display = (mkt||admin)?'':'none';
+  mostrar('cardSaldo', true);
+  const be=document.getElementById('btnExtrato'); if(be) be.style.display=(admin||fin)?'':'none';
+  const pab=document.getElementById('pAprovBox'); if(pab) pab.style.display = admin?'none':'';
+  // POs
+  mostrar('cardAg', ag); mostrar('cardStatusAg', ag);
+  mostrar('cardStatusMkt', false); mostrar('cardStatusAll', false);
+  // Aprovações
+  mostrar('cardAprovarProj', admin);
+  mostrar('cardPessoas', admin);
+  mostrar('cardAprovar', mkt||admin);
+  mostrar('cardGerar', fin||admin);
+  mostrar('cardValidar', fin||admin);
+}
+function abrirAba(nome){
+  if(!TABS_VISIVEIS.includes(nome)) nome = TABS_VISIVEIS[0] || 'projetos';
+  document.querySelectorAll('#tabbar .tabbtn').forEach(b=> b.classList.toggle('active', b.dataset.tab===nome));
+  document.querySelectorAll('.panel').forEach(p=> p.classList.remove('active'));
+  const panel=document.getElementById('panel-'+nome); if(panel) panel.classList.add('active');
+  if(nome==='overview')   carregarOverviewDash();
+  if(nome==='orcamentos') carregarOrcamentosCategorias();
+  if(nome==='projetos'){  carregarProjResumo(); carregar(); }
+  if(nome==='pos')        carregarPOsUnificada();
+  if(nome==='aprovacoes') atualizarBadgeAprov();
+}
+function focarNovoProjeto(){ abrirAba('projetos'); const c=document.getElementById('cardMkt'); if(c){ c.style.display=''; c.scrollIntoView({behavior:'smooth',block:'start'}); const n=document.getElementById('pNome'); if(n) setTimeout(()=>n.focus(),300); } }
+function focarNovoOrcamento(){ abrirAba('orcamentos'); const c=document.getElementById('cardOrc'); if(c){ c.scrollIntoView({behavior:'smooth',block:'start'}); const s=document.getElementById('oCat'); if(s) setTimeout(()=>s.focus(),300); } }
+
+// --- sino de notificações ---
+function toggleNotifDrop(){ const d=document.getElementById('notifDrop'); d.classList.toggle('on'); if(d.classList.contains('on')) carregarNotificacoes(); }
+
+// --- opções fixas dos seletores das abas ---
+function preencherOpcoesFixas(){
+  const opts = arr => arr.map(d=>`<option value="${d}">${d}</option>`).join('');
+  const oc=document.getElementById('oCat'); if(oc){ const a=oc.value; oc.innerHTML='<option value="">Selecione…</option>'+opts(DIMENSOES); if(a) oc.value=a; }
+  const pf=document.getElementById('projFiltroCat'); if(pf){ const a=pf.value; pf.innerHTML='<option value="">Todas as categorias</option>'+opts(DIMENSOES); if(a) pf.value=a; }
+  const ov=document.getElementById('ovCatFiltro'); if(ov){ const a=ov.value; ov.innerHTML='<option value="">Todas as categorias</option>'+opts(DIMENSOES); if(a) ov.value=a; }
+}
+function preencherFiltrosPOs(){
+  const opts = arr => arr.map(d=>`<option value="${d}">${d}</option>`).join('');
+  const cat=document.getElementById('fPoCat'); if(cat){ const a=cat.value; cat.innerHTML='<option value="">Todas categorias</option>'+opts(DIMENSOES); if(a) cat.value=a; }
+  const proj=document.getElementById('fPoProj');
+  if(proj){ const a=proj.value; const o=Object.entries(PROJ_NOMES).sort((x,y)=>String(x[1]).localeCompare(String(y[1]))).map(([id,n])=>`<option value="${id}">${n}</option>`).join(''); proj.innerHTML='<option value="">Todos projetos</option>'+o; if(a) proj.value=a; }
+  const ag=document.getElementById('fPoAg');
+  if(ag){ if(PAPEL==='agencia'){ ag.innerHTML=`<option value="${MINHA_AGENCIA}">${MINHA_AGENCIA}</option>`; ag.value=MINHA_AGENCIA; ag.disabled=true; }
+          else { const a=ag.value; ag.innerHTML='<option value="">Todas agências</option>'+opts(AGENCIAS); if(a) ag.value=a; } }
+  const st=document.getElementById('fPoStatus'); if(st){ const a=st.value; st.innerHTML='<option value="">Todos status</option>'+Object.entries(STATUS_LABEL).map(([k,l])=>`<option value="${k}">${l}</option>`).join(''); if(a) st.value=a; }
+}
+
+// --- POs: lista unificada com filtros ---
+async function carregarPOsUnificada(){
+  const box=document.getElementById('posUnificada'); if(!box) return;
+  const { data, error } = await sb.from('pos')
+    .select('id,agencia,valor,numero_po,status,projeto_id,projetos(nome,product_category)')
+    .order('atualizado_em',{ascending:false}).limit(400);
+  if(error){ box.innerHTML='<div class="empty">'+error.message+'</div>'; return; }
+  let rows=data||[];
+  const fCat=(document.getElementById('fPoCat')||{}).value||'';
+  const fProj=(document.getElementById('fPoProj')||{}).value||'';
+  const fAg=(document.getElementById('fPoAg')||{}).value||'';
+  const fSt=(document.getElementById('fPoStatus')||{}).value||'';
+  if(fCat) rows=rows.filter(r=> dimDe(r.projetos&&r.projetos.product_category)===fCat);
+  if(fProj) rows=rows.filter(r=> r.projeto_id===fProj);
+  if(fAg) rows=rows.filter(r=> r.agencia===fAg);
+  if(fSt) rows=rows.filter(r=> r.status===fSt);
+  if(!rows.length){ box.innerHTML='<div class="empty">Nenhuma PO com esses filtros.</div>'; return; }
+  const podeAprovar=(PAPEL==='marketing'||PAPEL==='admin');
+  const podeCancelar=s=> !['CONCLUIDA','CANCELADA','REJEITADA'].includes(s);
+  const acao=r=>{ let b='';
+    if(podeAprovar && ['SOLICITADA','EM_APROVACAO'].includes(r.status)) b+=`<button class="sm" onclick="aprovarU('${r.id}')">Aprovar</button><button class="ghost sm" onclick="rejeitarU('${r.id}')">Rejeitar</button>`;
+    if((PAPEL==='admin'||PAPEL==='agencia') && podeCancelar(r.status)) b+=`<button class="ghost sm" onclick="cancelarPOU('${r.id}')">Cancelar</button>`;
+    return b||'—'; };
+  box.innerHTML='<table><thead><tr><th>Nº PO</th><th>Cat.</th><th>Agência</th><th>Projeto</th><th class="r">Valor</th><th>Status</th><th></th></tr></thead><tbody>'
+    + rows.map(r=>`<tr>
+        <td class="num">${r.numero_po||'—'}</td>
+        <td>${(r.projetos&&r.projetos.product_category)?dimDe(r.projetos.product_category):'—'}</td>
+        <td>${r.agencia||'—'}</td>
+        <td>${r.projetos?r.projetos.nome:'—'}</td>
+        <td class="r num">${BRL(r.valor)}</td>
+        <td>${statusBadge(r.status)}${avisoNF(r.status)}</td>
+        <td style="white-space:nowrap">${acao(r)}</td></tr>`).join('') + '</tbody></table>';
+}
+async function aprovarU(id){ const {error}=await sb.rpc('aprovar_po',{p_po:id}); if(error)alert(error.message); refrescarAbas(); refrescarFilas(); }
+async function rejeitarU(id){ const {error}=await sb.rpc('rejeitar_po',{p_po:id}); if(error)alert(error.message); refrescarAbas(); refrescarFilas(); }
+async function cancelarPOU(id){ if(!confirm('Cancelar esta PO? O valor volta ao saldo do projeto.'))return; const {error}=await sb.rpc('cancelar_po',{p_po:id}); if(error){alert(error.message);return;} refrescarAbas(); refrescarFilas(); }
+
+// --- Projetos: resumo (KPIs) + lista ---
+async function carregarProjResumo(){
+  const box=document.getElementById('projResumo'); if(!box) return;
+  const fCat=(document.getElementById('projFiltroCat')||{}).value||'';
+  const { data: projs } = await sb.from('projetos').select('id,nome,product_category,activity,agencia,aprovacao_status').eq('aprovacao_status','APROVADO');
+  let lista=(projs||[]);
+  if(PAPEL==='agencia' && MINHA_AGENCIA) lista=lista.filter(p=>p.agencia===MINHA_AGENCIA);
+  if(fCat) lista=lista.filter(p=>dimDe(p.product_category)===fCat);
+  const idset=new Set(lista.map(p=>p.id));
+  const { data: tetos } = await sb.from('tetos').select('projeto_id,teto');
+  const { data: pos } = await sb.from('pos').select('projeto_id,valor,status');
+  const CONS=['FATURADA','VALIDADA','CONCLUIDA'], COMP=['APROVADA','PO_GERADA','ATUALIZAR_INFO'], PEND=['SOLICITADA','EM_APROVACAO'];
+  const porProj={}; lista.forEach(p=>porProj[p.id]={teto:0,cons:0,comp:0,pend:0});
+  (tetos||[]).forEach(t=>{ if(porProj[t.projeto_id]) porProj[t.projeto_id].teto+=Number(t.teto)||0; });
+  (pos||[]).forEach(p=>{ if(!porProj[p.projeto_id])return; const v=Number(p.valor)||0;
+    if(CONS.includes(p.status)) porProj[p.projeto_id].cons+=v;
+    else if(COMP.includes(p.status)) porProj[p.projeto_id].comp+=v;
+    else if(PEND.includes(p.status)) porProj[p.projeto_id].pend+=v; });
+  let total=0,cons=0,comp=0,pend=0;
+  lista.forEach(p=>{ const x=porProj[p.id]; total+=x.teto; cons+=x.cons; comp+=x.comp; pend+=x.pend; });
+  const saldo=total-cons-comp-pend;
+  const kpi=(k,v,cor)=>`<div class="ovstat"><div class="k">${k}</div><div class="v" style="${cor?'color:'+cor:''};font-size:17px">${v}</div></div>`;
+  let html=`<div class="ovstats" style="grid-template-columns:repeat(5,1fr)">
+    ${kpi('Projetos', lista.length)}${kpi('Orçamento', BRL(total))}${kpi('Comprometido', BRL(comp))}${kpi('Consumido', BRL(cons))}${kpi('Saldo', BRL(saldo), saldo<0?'var(--red)':'')}</div>`;
+  if(!lista.length){ html+='<div class="empty" style="margin-top:12px">Nenhum projeto aprovado nesta categoria.</div>'; }
+  else{
+    const podeEd=(PAPEL==='marketing'||PAPEL==='admin');
+    html+='<table style="margin-top:14px"><thead><tr><th>Projeto</th><th>Cat.</th><th>Atividade</th><th class="r">Orçamento</th><th class="r">Consumido</th><th class="r">Saldo</th><th></th></tr></thead><tbody>'
+    + lista.sort((a,b)=>String(a.nome).localeCompare(String(b.nome))).map(p=>{ const x=porProj[p.id]; const s=x.teto-x.cons-x.comp-x.pend;
+      return `<tr>
+        <td><a href="#" onclick="verPOsProjetoNaAba('${p.id}');return false" title="ver POs deste projeto">${p.nome}</a></td>
+        <td>${dimDe(p.product_category)||'—'}</td><td class="sub">${p.activity||'—'}</td>
+        <td class="r num">${BRL(x.teto)}</td><td class="r num">${BRL(x.cons)}</td>
+        <td class="r num" style="${s<0?'color:var(--red)':''}">${BRL(s)}</td>
+        <td style="white-space:nowrap">${podeEd?`<button class="ghost sm" onclick="editarProjeto('${p.id}')">Editar</button>`:''}</td></tr>`;
+    }).join('')+'</tbody></table>';
+  }
+  box.innerHTML=html;
+}
+function verPOsProjetoNaAba(id){ abrirAba('pos'); const f=document.getElementById('fPoProj'); if(f){ f.value=id; carregarPOsUnificada(); } }
+
+// --- Orçamentos por categoria (cards) ---
+function carregarOrcamentosCategorias(){
+  const box=document.getElementById('orcCategorias'); if(!box) return;
+  if(!ORCS_CACHE.length){ box.innerHTML='<div class="empty">Nenhum orçamento criado ainda.'+(PAPEL==='admin'?' Crie a primeira verba abaixo, por categoria.':'')+'</div>'; return; }
+  const grp={}; DIMENSOES.forEach(d=>grp[d]={tot:0,cons:0,saldo:0,n:0,verbas:0});
+  let outros=null;
+  ORCS_CACHE.forEach(o=>{ const d=dimDe(o.product_category); const g = grp[d] || (outros||(outros={tot:0,cons:0,saldo:0,n:0,verbas:0}));
+    g.tot+=Number(o.valor_total)||0; g.cons+=Number(o.consumido)||0; g.saldo+=Number(o.saldo)||0; g.n+=Number(o.n_projetos)||0; g.verbas+=1; });
+  const card=(nome,g)=>{ const pct=g.tot>0?Math.round(g.cons/g.tot*100):0; const cor=pct>=90?'var(--red)':(pct>=70?'var(--amber)':'var(--green)');
+    return `<div class="catcard"><div class="cn">${nome}<span class="pill-cat">${g.verbas} verba(s) · ${g.n} proj.</span></div>
+      <div class="cl"><span>Valor total</span><b>${BRL(g.tot)}</b></div>
+      <div class="cl"><span>Consumido/aprovado</span><b>${BRL(g.cons)}</b></div>
+      <div class="cl"><span>Saldo</span><b style="${g.saldo<0?'color:var(--red)':''}">${BRL(g.saldo)}</b></div>
+      <div class="bar-mini" style="margin-top:10px"><span style="width:${Math.min(100,pct)}%;background:${cor}"></span></div>
+      <div class="sub" style="text-align:right;font-size:11.5px;margin-top:3px">${pct}% consumido</div></div>`; };
+  let cards=DIMENSOES.map(d=>card(d,grp[d])).join('');
+  if(outros) cards+=card('Outros / sem categoria', outros);
+  box.innerHTML='<div class="catgrid">'+cards+'</div>';
+}
+
+// --- Overview: KPIs + 3 gráficos (fonte: saldo_mensal, reconcilia com o extrato) ---
+const _charts={};
+function fmtMesLabel(m){ const [y,mm]=m.split('-'); const nomes=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez']; return (nomes[Number(mm)-1]||mm)+'/'+y.slice(2); }
+function desChart(canvasId,type,data,stacked){
+  const cv=document.getElementById(canvasId); if(!cv || !window.Chart) return;
+  if(_charts[canvasId]) _charts[canvasId].destroy();
+  _charts[canvasId]=new Chart(cv.getContext('2d'),{ type, data,
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}},
+        tooltip:{callbacks:{label:c=> c.dataset.label+': '+BRL(c.parsed.y)}} },
+      scales:{ x:{stacked:!!stacked,grid:{display:false}},
+               y:{stacked:!!stacked,ticks:{callback:v=> 'R$ '+(Math.abs(v)>=1000?(v/1000).toLocaleString('pt-BR')+'k':v)}} } } });
+}
+async function carregarOverviewDash(){
+  if(!TABS_VISIVEIS.includes('overview')) return;
+  const { data: projs } = await sb.from('projetos').select('id,product_category,activity,aprovacao_status');
+  const META={}; (projs||[]).forEach(p=>META[p.id]={cat:p.product_category,ativ:p.activity});
+  const { data: tetos } = await sb.from('tetos').select('competencia');
+  const meses=[...new Set((tetos||[]).map(t=>String(t.competencia).slice(0,7)))].sort();
+  const catFiltro=(document.getElementById('ovCatFiltro')||{}).value||'';
+  let totTeto=0,totComp=0,totPend=0,totSaldo=0;
+  const porMes=[], agAtiv={}, agCat={};
+  DIMENSOES.forEach(d=>agCat[d]={teto:0,comp:0}); ATIVIDADES.forEach(a=>agAtiv[a]={teto:0,comp:0});
+  for(const m of meses){
+    const { data: saldo } = await sb.rpc('saldo_mensal',{p_competencia:m+'-01'});
+    let mT=0,mC=0,mP=0,mS=0;
+    (saldo||[]).forEach(s=>{ const meta=META[s.projeto_id]||{}; const dim=dimDe(meta.cat);
+      if(catFiltro && dim!==catFiltro) return;
+      const teto=Number(s.teto)||0,comp=Number(s.comprometido)||0,pend=Number(s.pendente)||0,sal=Number(s.saldo)||0;
+      mT+=teto; mC+=comp; mP+=pend; mS+=sal;
+      if(agCat[dim]){ agCat[dim].teto+=teto; agCat[dim].comp+=comp; }
+      if(meta.ativ && agAtiv[meta.ativ]){ agAtiv[meta.ativ].teto+=teto; agAtiv[meta.ativ].comp+=comp; } });
+    porMes.push({m,teto:mT,comp:mC,pend:mP,saldo:mS}); totTeto+=mT; totComp+=mC; totPend+=mP; totSaldo+=mS;
+  }
+  let totCons=null;
+  try{ const { data: pos } = await sb.from('pos').select('valor,status,projeto_id');
+    if(pos){ const CONS=['FATURADA','VALIDADA','CONCLUIDA']; totCons=0;
+      pos.forEach(p=>{ const meta=META[p.projeto_id]||{}; if(catFiltro && dimDe(meta.cat)!==catFiltro) return; if(CONS.includes(p.status)) totCons+=Number(p.valor)||0; }); }
+  }catch(_){}
+  const stat=(k,v,cor)=>`<div class="ovstat"><div class="k">${k}</div><div class="v" style="${cor?'color:'+cor:''}">${v}</div></div>`;
+  const os=document.getElementById('ovStats');
+  if(os) os.innerHTML = stat('Orçamento',BRL(totTeto))+stat('Comprometido',BRL(totComp))+stat('Consumido',totCons==null?'—':BRL(totCons))+stat('Saldo',BRL(totSaldo),totSaldo<0?'var(--red)':'');
+  desChart('chartMes','bar',{ labels:porMes.map(x=>fmtMesLabel(x.m)),
+    datasets:[ {label:'Comprometido',data:porMes.map(x=>x.comp),backgroundColor:'#1f8a4c',stack:'s'},
+      {label:'Pendente',data:porMes.map(x=>x.pend),backgroundColor:'#cf8a16',stack:'s'},
+      {label:'Saldo',data:porMes.map(x=>x.saldo),backgroundColor:'#cfd4dc',stack:'s'} ] }, true);
+  desChart('chartAtiv','bar',{ labels:ATIVIDADES,
+    datasets:[ {label:'Orçamento',data:ATIVIDADES.map(a=>agAtiv[a].teto),backgroundColor:'#bd9f68'},
+      {label:'Comprometido',data:ATIVIDADES.map(a=>agAtiv[a].comp),backgroundColor:'#e20613'} ] }, false);
+  desChart('chartCat','bar',{ labels:DIMENSOES,
+    datasets:[ {label:'Orçamento',data:DIMENSOES.map(d=>agCat[d].teto),backgroundColor:'#bd9f68'},
+      {label:'Comprometido',data:DIMENSOES.map(d=>agCat[d].comp),backgroundColor:'#e20613'} ] }, false);
+}
+
+// --- badge de aprovações pendentes na aba ---
+async function atualizarBadgeAprov(){
+  let n=0;
+  try{
+    if(PAPEL==='admin'||PAPEL==='marketing'){ const {count}=await sb.from('pos').select('id',{count:'exact',head:true}).in('status',['SOLICITADA','EM_APROVACAO']); n+=count||0; }
+    if(PAPEL==='admin'){ const {count}=await sb.from('projetos').select('id',{count:'exact',head:true}).eq('aprovacao_status','PENDENTE'); n+=count||0; }
+    if(PAPEL==='admin'||PAPEL==='financeiro'){
+      const {count:c2}=await sb.from('pos').select('id',{count:'exact',head:true}).eq('status','APROVADA'); n+=c2||0;
+      const {count:c3}=await sb.from('pos').select('id',{count:'exact',head:true}).eq('status','FATURADA'); n+=c3||0; }
+  }catch(_){}
+  const btn=document.querySelector('#tabbar .tabbtn[data-tab="aprovacoes"]'); if(btn) btn.classList.toggle('hasnew', n>0);
+}
+
+// refresca as visões das abas depois de qualquer ação
+async function refrescarAbas(){
+  try{ if(typeof carregarOrcamentos==='function') await carregarOrcamentos(); }catch(_){}
+  carregarOrcamentosCategorias(); carregarPOsUnificada(); carregarProjResumo(); atualizarBadgeAprov();
+  const ov=document.getElementById('panel-overview'); if(ov && ov.classList.contains('active')) carregarOverviewDash();
 }
 
 // Ao abrir a página: se URL/anon key já estiverem preenchidas no topo, conecta sozinho
