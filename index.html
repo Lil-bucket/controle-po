@@ -418,7 +418,10 @@
       <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg><span id="orcFormTitulo">Definir orçamento da categoria</span></h2>
       <div class="field"><label>Categoria de produto</label><select id="oCat" onchange="sugerirNomeOrc()"></select></div>
       <input id="oNome" type="hidden" />
-      <div class="field"><label>Valor total liberado (aprovado)</label><input id="oValor" type="text" inputmode="numeric" placeholder="R$ 100.000,00" /></div>
+      <div class="row">
+        <div class="field"><label>Valor total (orçamento da categoria)</label><input id="oValor" type="text" inputmode="numeric" placeholder="R$ 100.000,00" /></div>
+        <div class="field"><label>Valor liberado (para projetos)</label><input id="oLiberado" type="text" inputmode="numeric" placeholder="R$ 5.000,00" /></div>
+      </div>
       <div class="row">
         <div class="field"><label>Início</label><input id="oIni" type="month" /></div>
         <div class="field"><label>Fim</label><input id="oFim" type="month" /></div>
@@ -564,7 +567,7 @@ function maskBRL(el){
   });
 }
 const parseBRL = el => { const d = el.value.replace(/\D/g,''); return d ? Number(d)/100 : 0; };
-['pTeto','sVal'].forEach(id => { const el=document.getElementById(id); if(el) maskBRL(el); });
+['pTeto','sVal','oValor','oLiberado'].forEach(id => { const el=document.getElementById(id); if(el) maskBRL(el); });
 
 // Agências da empresa (lista fixa)
 const AGENCIAS = ['F2F','IEST','Shutter','Furia'];
@@ -926,13 +929,13 @@ let ORCS_CACHE = [];   // [{id,nome,valor_total,consumido,saldo,n_projetos,perio
 async function carregarOrcamentos(){
   const { data, error } = await sb.rpc('orcamentos_resumo');
   const orcs = error ? [] : (data || []);
-  // categoria de cada orçamento (coluna product_category, lida direto da tabela)
-  let catPorId = {};
+  // categoria e valor liberado de cada orçamento (lidos direto da tabela)
+  let catPorId = {}, libPorId = {};
   try{
-    const { data: cats } = await sb.from('orcamentos').select('id,product_category');
-    (cats||[]).forEach(c => { catPorId[c.id] = c.product_category || ''; });
+    const { data: cats } = await sb.from('orcamentos').select('id,product_category,valor_liberado');
+    (cats||[]).forEach(c => { catPorId[c.id] = c.product_category || ''; libPorId[c.id] = (c.valor_liberado==null?null:Number(c.valor_liberado)); });
   }catch(_){}
-  ORCS_CACHE = orcs.map(o => ({ ...o, product_category: catPorId[o.id] || '' }));
+  ORCS_CACHE = orcs.map(o => ({ ...o, product_category: catPorId[o.id] || '', valor_liberado: libPorId[o.id] }));
 
   filtrarOrcamentosPorCategoria();   // popula o seletor do formulário de projeto
 
@@ -990,6 +993,7 @@ function cancelarEdicaoOrc(){
   document.getElementById('oCat').value='';
   document.getElementById('oNome').value='';
   document.getElementById('oValor').value='';
+  document.getElementById('oLiberado').value='';
   document.getElementById('oIni').value='';
   document.getElementById('oFim').value='';
   document.getElementById('btnOrc').textContent='Criar orçamento';
@@ -998,11 +1002,12 @@ function cancelarEdicaoOrc(){
   show('orcMsg','','');
   esconderFormOrc();
 }
-function editarOrcamento(id, nome, valor, ini, fim, cat){
+function editarOrcamento(id, nome, valor, ini, fim, cat, lib){
   EDIT_ORC = id;
   document.getElementById('oCat').value = cat || '';
   document.getElementById('oNome').value = nome || ('Orçamento '+(cat||''));
   document.getElementById('oValor').value = BRL(valor);
+  document.getElementById('oLiberado').value = (lib==null? '' : BRL(lib));
   document.getElementById('oIni').value = ini || '';
   document.getElementById('oFim').value = fim || '';
   document.getElementById('btnOrc').textContent='Salvar alterações';
@@ -1014,28 +1019,28 @@ async function salvarOrcamento(){
   const cat = document.getElementById('oCat').value;
   const nome = (document.getElementById('oNome').value || '').trim() || ('Orçamento '+cat);
   const valor = parseBRL(document.getElementById('oValor'));
+  const liberado = parseBRL(document.getElementById('oLiberado'));
   const ini = document.getElementById('oIni').value;
   const fim = document.getElementById('oFim').value;
   if(!cat){ show('orcMsg','err','Escolha a categoria de produto do orçamento.'); return; }
-  if(!valor){ show('orcMsg','err','Informe o valor total liberado.'); return; }
-  // uma verba por categoria: se já existir, atualiza; senão cria
+  if(!valor){ show('orcMsg','err','Informe o valor total do orçamento.'); return; }
+  if(liberado > valor + 0.001){ show('orcMsg','err','O valor liberado ('+BRL(liberado)+') não pode ser maior que o valor total ('+BRL(valor)+').'); return; }
   let alvoId = EDIT_ORC;
   if(!alvoId){ const ex = ORCS_CACHE.find(o=>dimDe(o.product_category)===dimDe(cat)); if(ex) alvoId = ex.id; }
+  const campos = { nome, valor_total: valor, valor_liberado: liberado, product_category: cat,
+    periodo_inicio: ini ? ini+'-01' : null, periodo_fim: fim ? fim+'-01' : null };
   if(alvoId){
-    const { error } = await sb.from('orcamentos').update({
-      nome, valor_total: valor, product_category: cat,
-      periodo_inicio: ini ? ini+'-01' : null, periodo_fim: fim ? fim+'-01' : null
-    }).eq('id', alvoId);
+    const { error } = await sb.from('orcamentos').update(campos).eq('id', alvoId);
     if(error){ show('orcMsg','err', error.message); return; }
-    show('orcMsg','ok', `Orçamento da categoria ${cat} atualizado para ${BRL(valor)}.`);
+    show('orcMsg','ok', `Categoria ${cat}: total ${BRL(valor)}, liberado ${BRL(liberado)}.`);
   } else {
     const { data: novo, error } = await sb.rpc('criar_orcamento', {
       p_nome:nome, p_valor:valor, p_inicio: ini ? ini+'-01' : null, p_fim: fim ? fim+'-01' : null });
     if(error){ show('orcMsg','err', error.message); return; }
     let novoId = (typeof novo === 'string') ? novo : (novo && novo.id) ? novo.id : null;
     if(!novoId){ const { data: achado } = await sb.from('orcamentos').select('id').eq('nome', nome).is('product_category', null).limit(1); novoId = achado && achado[0] ? achado[0].id : null; }
-    if(novoId){ await sb.from('orcamentos').update({ product_category: cat }).eq('id', novoId); }
-    show('orcMsg','ok', `Orçamento da categoria ${cat} criado (${BRL(valor)}).`+(novoId?'':' Atenção: não consegui gravar a categoria — edite e ajuste.'));
+    if(novoId){ await sb.from('orcamentos').update({ product_category: cat, valor_liberado: liberado }).eq('id', novoId); }
+    show('orcMsg','ok', `Categoria ${cat} criada: total ${BRL(valor)}, liberado ${BRL(liberado)}.`+(novoId?'':' Atenção: não consegui gravar categoria/liberado — edite e ajuste.'));
   }
   cancelarEdicaoOrc();
   await carregarOrcamentos();
@@ -2127,34 +2132,34 @@ function catProjeto(p){
 // --- Orçamentos: UMA linha por categoria. Aprovado = total liberado pelo admin · Consumido = Σ tetos dos projetos da categoria (#1,#4) ---
 async function carregarOrcamentosCategorias(){
   const box=document.getElementById('orcCategorias'); if(!box) return;
-  const { data: orcs }  = await sb.from('orcamentos').select('id,valor_total,product_category');
+  const { data: orcs }  = await sb.from('orcamentos').select('id,valor_total,valor_liberado,product_category');
   const { data: projs } = await sb.from('projetos').select('id,product_category,account_desc,aprovacao_status').eq('aprovacao_status','APROVADO');
   const { data: tetos } = await sb.from('tetos').select('projeto_id,teto');
   const tetoProj={}; (tetos||[]).forEach(t=>{ tetoProj[t.projeto_id]=(tetoProj[t.projeto_id]||0)+(Number(t.teto)||0); });
-  const aprov={},cons={},nb={},np={}; DIMENSOES.forEach(d=>{aprov[d]=0;cons[d]=0;nb[d]=0;np[d]=0;});
-  let outros=null; const O=()=>outros||(outros={aprov:0,cons:0,nb:0,np:0});
-  (orcs||[]).forEach(o=>{ const d=dimDe(o.product_category); if(DIMENSOES.includes(d)){aprov[d]+=Number(o.valor_total)||0;nb[d]++;} else {const g=O();g.aprov+=Number(o.valor_total)||0;g.nb++;} });
-  (projs||[]).forEach(p=>{ const d=catProjeto(p); const t=tetoProj[p.id]||0; if(DIMENSOES.includes(d)){cons[d]+=t;np[d]++;} else {const g=O();g.cons+=t;g.np++;} });
-  const dims=DIMENSOES.filter(d=> aprov[d]>0||cons[d]>0||nb[d]>0||np[d]>0);   // só categorias em uso
-  const admin = (PAPEL==='admin');
-  const card=(dim,ap,co,pj,editavel)=>{ const sal=ap-co, pct=ap>0?Math.round(co/ap*100):0; const cor=pct>=90?'var(--red)':(pct>=70?'var(--amber)':'var(--green)');
-    const btn = (admin&&editavel)?`<button class="ghost sm" style="margin-top:12px;width:100%" onclick="editarCategoria('${dim}')">${ap>0?'Editar total':'Definir total'}</button>`:'';
+  const total={},lib={},proj={},np={}; DIMENSOES.forEach(d=>{total[d]=0;lib[d]=0;proj[d]=0;np[d]=0;});
+  let outros=null; const O=()=>outros||(outros={total:0,lib:0,proj:0,np:0});
+  (orcs||[]).forEach(o=>{ const d=dimDe(o.product_category); const vt=Number(o.valor_total)||0; const vl=(o.valor_liberado==null?vt:Number(o.valor_liberado));
+    if(DIMENSOES.includes(d)){ total[d]+=vt; lib[d]+=vl; } else { const g=O(); g.total+=vt; g.lib+=vl; } });
+  (projs||[]).forEach(p=>{ const d=catProjeto(p); const t=tetoProj[p.id]||0; if(DIMENSOES.includes(d)){proj[d]+=t;np[d]++;} else {const g=O();g.proj+=t;g.np++;} });
+  const admin=(PAPEL==='admin');
+  const card=(dim,vt,vl,pr,pj,editavel)=>{ const sal=vl-pr, pct=vl>0?Math.round(pr/vl*100):0; const cor=pct>=90?'var(--red)':(pct>=70?'var(--amber)':'var(--green)');
+    const btn=(admin&&editavel)?`<button class="ghost sm" style="margin-top:12px;width:100%" onclick="editarCategoria('${dim}')">${vt>0||vl>0?'Editar':'Definir'}</button>`:'';
     return `<div class="catcard"><div class="cn">${dim}<span class="pill-cat">${pj} proj.</span></div>
-      <div class="cl"><span>Aprovado (liberado)</span><b>${BRL(ap)}</b></div>
-      <div class="cl"><span>Consumido (projetos)</span><b>${BRL(co)}</b></div>
+      <div class="cl"><span>Valor total</span><b>${BRL(vt)}</b></div>
+      <div class="cl"><span>Valor liberado</span><b>${BRL(vl)}</b></div>
+      <div class="cl"><span>Projetos</span><b>${BRL(pr)}</b></div>
       <div class="cl"><span>Saldo</span><b style="${sal<0?'color:var(--red)':''}">${BRL(sal)}</b></div>
       <div class="bar-mini" style="margin-top:10px"><span style="width:${Math.min(100,pct)}%;background:${cor}"></span></div>
-      <div class="sub" style="text-align:right;font-size:11.5px;margin-top:3px">${pct}% consumido</div>${btn}</div>`; };
-  let cards=dims.map(d=>card(d,aprov[d],cons[d],np[d],true)).join('');
-  if(outros) cards+=card('Outros / sem categoria',outros.aprov,outros.cons,outros.np,false);
-  box.innerHTML = cards ? '<div class="catgrid">'+cards+'</div>'
-    : '<div class="empty">Nenhuma verba ou projeto ainda.'+(admin?' Use "+ Novo orçamento" para liberar o total de uma categoria.':'')+'</div>';
-  const det=document.getElementById('orcDetalhe'); if(det) det.innerHTML='';   // sem lista de verbas nomeadas
+      <div class="sub" style="text-align:right;font-size:11.5px;margin-top:3px">${pct}% do liberado em projetos</div>${btn}</div>`; };
+  let cards=DIMENSOES.map(d=>card(d,total[d],lib[d],proj[d],np[d],true)).join('');   // TODAS as categorias, sempre
+  if(outros) cards+=card('Outros / sem categoria',outros.total,outros.lib,outros.proj,outros.np,false);
+  box.innerHTML='<div class="catgrid">'+cards+'</div>';
+  const det=document.getElementById('orcDetalhe'); if(det) det.innerHTML='';
 }
 // abre o formulário (embaixo dos cards) para definir/editar o total de uma categoria (#2,#3)
 function editarCategoria(dim){
   const existente = ORCS_CACHE.find(o=>dimDe(o.product_category)===dim);
-  if(existente){ editarOrcamento(existente.id, existente.nome, existente.valor_total, (existente.periodo_inicio||'').slice(0,7), (existente.periodo_fim||'').slice(0,7), dim); }
+  if(existente){ editarOrcamento(existente.id, existente.nome, existente.valor_total, (existente.periodo_inicio||'').slice(0,7), (existente.periodo_fim||'').slice(0,7), dim, existente.valor_liberado); }
   else { cancelarEdicaoOrc(); document.getElementById('oCat').value=dim; sugerirNomeOrc(); document.getElementById('orcFormTitulo').textContent='Definir orçamento — '+dim; }
   const oc=document.getElementById('oCat'); if(oc) oc.disabled=true;
   const slot=document.getElementById('orcCreateSlot'), f=document.getElementById('cardOrc');
