@@ -457,8 +457,18 @@
         <div class="field"><label>Valor liberado (para projetos)</label><input id="oLiberado" type="text" inputmode="numeric" placeholder="R$ 5.000,00" /></div>
       </div>
       <div class="row">
-        <div class="field"><label>Início</label><input id="oIni" type="month" /></div>
-        <div class="field"><label>Fim</label><input id="oFim" type="month" /></div>
+        <div class="field"><label>Início</label>
+          <div style="display:flex;gap:8px">
+            <select id="oIniMes" style="flex:1"></select>
+            <select id="oIniAno" style="flex:1"></select>
+          </div>
+        </div>
+        <div class="field"><label>Fim</label>
+          <div style="display:flex;gap:8px">
+            <select id="oFimMes" style="flex:1"></select>
+            <select id="oFimAno" style="flex:1"></select>
+          </div>
+        </div>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <button id="btnOrc" onclick="salvarOrcamento()">Criar orçamento</button>
@@ -1061,6 +1071,18 @@ async function resolverOrcamentoDaCategoria(){
   if(typeof atualizarTotalProjeto==='function') atualizarTotalProjeto();
 }
 let EDIT_ORC = null;
+const MESES_PT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+function preencherMesAnoOrc(){
+  const y=new Date().getFullYear(); const anos=[]; for(let a=y-1;a<=y+4;a++) anos.push(a);
+  ['oIniMes','oFimMes'].forEach(id=>{ const s=document.getElementById(id); if(s){ const v=s.value; s.innerHTML='<option value="">Mês</option>'+MESES_PT.map((m,i)=>`<option value="${String(i+1).padStart(2,'0')}">${m}</option>`).join(''); if(v) s.value=v; } });
+  ['oIniAno','oFimAno'].forEach(id=>{ const s=document.getElementById(id); if(s){ const v=s.value; s.innerHTML='<option value="">Ano</option>'+anos.map(a=>`<option value="${a}">${a}</option>`).join(''); if(v) s.value=v; } });
+}
+function getMesAno(prefix){ const m=(document.getElementById(prefix+'Mes')||{}).value||''; const a=(document.getElementById(prefix+'Ano')||{}).value||''; return (m&&a)?(a+'-'+m):''; }
+function setMesAno(prefix, val){
+  const m=document.getElementById(prefix+'Mes'), a=document.getElementById(prefix+'Ano');
+  if(val && /^\d{4}-\d{2}/.test(val)){ if(a) a.value=String(val).slice(0,4); if(m) m.value=String(val).slice(5,7); }
+  else { if(a) a.value=''; if(m) m.value=''; }
+}
 function sugerirNomeOrc(){
   const cat = document.getElementById('oCat').value;
   const nomeEl = document.getElementById('oNome');
@@ -1072,8 +1094,7 @@ function cancelarEdicaoOrc(){
   document.getElementById('oNome').value='';
   document.getElementById('oValor').value='';
   document.getElementById('oLiberado').value='';
-  document.getElementById('oIni').value='';
-  document.getElementById('oFim').value='';
+  setMesAno('oIni',''); setMesAno('oFim','');
   document.getElementById('btnOrc').textContent='Criar orçamento';
   document.getElementById('btnCancelOrc').style.display='none';
   const tt=document.getElementById('orcFormTitulo'); if(tt) tt.textContent='Definir orçamento da categoria';
@@ -1086,8 +1107,7 @@ function editarOrcamento(id, nome, valor, ini, fim, cat, lib){
   document.getElementById('oNome').value = nome || ('Orçamento '+(cat||''));
   document.getElementById('oValor').value = BRL(valor);
   document.getElementById('oLiberado').value = (lib==null? '' : BRL(lib));
-  document.getElementById('oIni').value = ini || '';
-  document.getElementById('oFim').value = fim || '';
+  setMesAno('oIni', ini); setMesAno('oFim', fim);
   document.getElementById('btnOrc').textContent='Salvar alterações';
   document.getElementById('btnCancelOrc').style.display='';
   const tt=document.getElementById('orcFormTitulo'); if(tt) tt.textContent='Editar orçamento — '+(cat||'');
@@ -1098,8 +1118,8 @@ async function salvarOrcamento(){
   const nome = (document.getElementById('oNome').value || '').trim() || ('Orçamento '+cat);
   const valor = parseBRL(document.getElementById('oValor'));
   const liberado = parseBRL(document.getElementById('oLiberado'));
-  const ini = document.getElementById('oIni').value;
-  const fim = document.getElementById('oFim').value;
+  const ini = getMesAno('oIni');
+  const fim = getMesAno('oFim');
   if(!cat){ show('orcMsg','err','Escolha a categoria de produto do orçamento.'); return; }
   if(!valor){ show('orcMsg','err','Informe o valor total do orçamento.'); return; }
   if(liberado > valor + 0.001){ show('orcMsg','err','O valor liberado ('+BRL(liberado)+') não pode ser maior que o valor total ('+BRL(valor)+').'); return; }
@@ -2140,6 +2160,7 @@ function toggleNotifDrop(){ const d=document.getElementById('notifDrop'); d.clas
 // --- opções fixas dos seletores das abas ---
 function preencherOpcoesFixas(){
   const opts = arr => arr.map(d=>`<option value="${d}">${d}</option>`).join('');
+  preencherMesAnoOrc();
   const oc=document.getElementById('oCat'); if(oc){ const a=oc.value; oc.innerHTML='<option value="">Selecione…</option>'+opts(DIMENSOES); if(a) oc.value=a; }
   const pf=document.getElementById('projFiltroCat'); if(pf){ const a=pf.value; pf.innerHTML='<option value="">Todas as categorias</option>'+opts(DIMENSOES); if(a) pf.value=a; }
   const ov=document.getElementById('ovCatFiltro'); if(ov){ const a=ov.value; ov.innerHTML='<option value="">Todas as categorias</option>'+opts(DIMENSOES); if(a) ov.value=a; }
