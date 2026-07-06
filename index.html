@@ -395,6 +395,14 @@
         </div>
         <div id="rcLinhas"></div>
         <div class="sub" id="rcSoma" style="margin:8px 0"></div>
+        <div style="border-top:1px solid var(--line);margin:12px 0;padding-top:12px">
+          <div class="sub" style="font-weight:700;margin-bottom:8px">Classificação contábil da nota de rateio (aparece na solicitação de PO)</div>
+          <div class="row">
+            <div class="field"><label>CC</label><input id="rcCC" placeholder="Ex.: 1109123014"></div>
+            <div class="field"><label>Account</label><input id="rcAccount" placeholder="Ex.: 32202169"></div>
+          </div>
+          <div class="field"><label>Descrição</label><input id="rcDesc" placeholder="Ex.: Agency Fee - F2F (TV)"></div>
+        </div>
         <div id="rcMsg" class="msg"></div>
         <button onclick="salvarRateioConfig()">Salvar rateio</button>
       </div>
@@ -412,13 +420,17 @@
     <div class="card" id="cardMkt">
       <h2 id="cardMktTitle"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2Z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg><span id="cardMktTxt">Marketing — criar projeto</span></h2>
       <div class="field"><label>Nome do projeto</label><input id="pNome" placeholder="Ex.: Gamescom Brasil 2026" /></div>
-      <div class="field"><label>Orçamento (verba de origem)</label><select id="pOrc" onchange="mostrarSaldoOrc()"></select></div>
-      <div id="orcHint" class="sub" style="margin:-4px 0 12px"></div>
       <div class="field"><label>Agência responsável</label><select id="pAgencia" onchange="atualizarAtividades()"></select></div>
-      <div class="row">
-        <div class="field"><label>Categoria de produto</label><select id="pCat" onchange="previewClassificacao();filtrarOrcamentosPorCategoria()"></select></div>
-        <div class="field"><label>Atividade</label><select id="pAtiv" onchange="previewClassificacao();aoMudarAtividade()"></select></div>
+      <div class="field"><label>Atividade</label><select id="pAtiv" onchange="previewClassificacao();aoMudarAtividade()"></select></div>
+      <label id="rateioToggleBox" style="display:none;align-items:center;gap:8px;margin:2px 0 12px;cursor:pointer;font-size:13.5px">
+        <input type="checkbox" id="pRateio" onchange="atualizarUIRateio()" style="width:auto;margin:0">
+        Este Fee é <b>compartilhado</b> (rateio entre categorias — nota única, o admin distribui)
+      </label>
+      <div class="field" id="pCatField"><label>Categoria de produto</label>
+        <select id="pCat" onchange="previewClassificacao();filtrarOrcamentosPorCategoria();mostrarSaldoCategoria()"></select>
+        <div id="catHint" class="sub" style="margin-top:4px"></div>
       </div>
+      <select id="pOrc" style="display:none" onchange="mostrarSaldoOrc()"></select>
       <div class="field"><label>Projeto (classificação)</label><select id="pProjTag" onchange="previewClassificacao()"></select></div>
       <div class="sub" id="previewClass" style="margin:-4px 0 12px"></div>
       <div id="rateioHint" class="msg" style="display:none"></div>
@@ -598,9 +610,10 @@ function opcoesAgencia(selecionada){
 
 // Listas de classificação contábil (da aba Listas)
 const CATEGORIAS = ['TV','MON','AC','REF','WM','MOB','TV-LABG','Copa- LABG','SQD - LABG'];
-const ATIVIDADES = ['KOL','AON','Campaings','Fee','Fee Agência - Rateio','Fee KOL - Rateio'];
-const RATEIO_ATIVS = {'Fee Agência - Rateio':'AGENCIA','Fee KOL - Rateio':'KOL'};
-function ehAtividadeRateio(a){ return a in RATEIO_ATIVS; }
+const ATIVIDADES = ['KOL','AON','Campaings','Fee'];
+const ATIVS_RATEAVEIS = ['Fee','KOL'];              // atividades que podem ser rateio compartilhado
+function tipoRateioDaAtividade(a){ return a==='KOL' ? 'KOL' : 'AGENCIA'; }
+function ehAtividadeRateavel(a){ return ATIVS_RATEAVEIS.includes(a); }
 const PROJ_TAGS  = ['10 years TCLSemp','Always On','BAB','F2F','FreshIN','Furia','Gamescom','Iest','Instaladores','Libertadores','Shutterstock','SP Arte','SQD Miniled','Squad','World Cup','Olimpiada','Monitor'];
 function opcoesSimples(arr){
   return '<option value="">Selecione…</option>' + arr.map(a=>`<option value="${a}">${a}</option>`).join('');
@@ -619,11 +632,8 @@ async function previewClassificacao(){
   box.innerHTML = r ? `Resulta em → CC <b>${r.cc||'—'}</b> · Account <b>${r.account||'—'}</b> · <b>${r.descricao||'—'}</b>` : '';
 }
 
-// Atividades permitidas por agência (F2F/IEST podem abrir Fees de rateio compartilhado)
-const ATIV_POR_AGENCIA = {
-  F2F:['AON','Campaings','Fee','Fee Agência - Rateio','Fee KOL - Rateio'],
-  IEST:['KOL','Fee','Fee Agência - Rateio','Fee KOL - Rateio'],
-  Shutter:['Fee'], Furia:['KOL'] };
+// Atividades permitidas por agência (F2F = todas menos KOL)
+const ATIV_POR_AGENCIA = { F2F:['AON','Campaings','Fee'], IEST:['KOL','Fee'], Shutter:['Fee'], Furia:['KOL'] };
 function atualizarAtividades(){
   const ag = document.getElementById('pAgencia').value;
   const lista = ATIV_POR_AGENCIA[ag] || ATIVIDADES;
@@ -631,25 +641,35 @@ function atualizarAtividades(){
   previewClassificacao();
   aoMudarAtividade();
 }
-// quando a atividade é de rateio, categoria/orçamento saem de cena (as categorias vêm da config de rateio)
+// mostra a flag de rateio (Fee/KOL); quando ligada, categoria/orçamento saem de cena
 async function aoMudarAtividade(){
   const ativ = document.getElementById('pAtiv').value;
   const ag = document.getElementById('pAgencia').value;
-  const rateio = ehAtividadeRateio(ativ);
+  const toggleBox = document.getElementById('rateioToggleBox');
+  const chk = document.getElementById('pRateio');
+  const rateavel = ehAtividadeRateavel(ativ);
+  if(toggleBox) toggleBox.style.display = rateavel ? '' : 'none';
+  if(!rateavel && chk) chk.checked = false;
+  await atualizarUIRateio();
+}
+async function atualizarUIRateio(){
+  const ativ = document.getElementById('pAtiv').value;
+  const ag = document.getElementById('pAgencia').value;
+  const chk = document.getElementById('pRateio');
+  const rateioOn = chk && chk.checked && ehAtividadeRateavel(ativ);
+  const catField = document.getElementById('pCatField');
   const box = document.getElementById('rateioHint');
-  const catField = document.getElementById('pCat') ? document.getElementById('pCat').closest('.field') : null;
-  const orcField = document.getElementById('pOrc') ? document.getElementById('pOrc').closest('.field') : null;
-  if(catField) catField.style.display = rateio ? 'none' : '';
-  if(orcField) orcField.style.display = rateio ? 'none' : '';
+  if(catField) catField.style.display = rateioOn ? 'none' : '';
   if(!box) return;
-  if(!rateio){ box.style.display='none'; box.innerHTML=''; return; }
-  const tipo = RATEIO_ATIVS[ativ];
-  const { data: cfg } = await sb.from('fee_rateio').select('categoria,percentual').eq('agencia',ag).eq('tipo',tipo);
+  if(!rateioOn){ box.style.display='none'; box.innerHTML=''; return; }
+  const tipo = tipoRateioDaAtividade(ativ);
+  const { data: cfg } = await sb.from('fee_rateio').select('categoria,percentual,cc,account,descricao').eq('agencia',ag).eq('tipo',tipo);
   box.style.display='';
-  if(!cfg || !cfg.length){ box.className='msg err'; box.innerHTML=`Não há rateio configurado para <b>${ag} · ${ativ}</b>. Peça ao admin para configurar em Orçamentos → Rateio de Fee.`; return; }
-  const linhas = cfg.map(c=>`${dimDe(c.categoria)}: ${(Number(c.percentual)*100).toFixed(2)}%`).join(' · ');
+  if(!cfg || !cfg.length){ box.className='msg err'; box.innerHTML=`Não há rateio configurado para <b>${ag} · ${tipo==='KOL'?'KOL':'Fee Agência'}</b>. Peça ao admin em Orçamentos → Rateio de Fee.`; return; }
+  const linhas = cfg.map(c=>`${dimDe(c.categoria)} ${(Number(c.percentual)*100).toFixed(2)}%`).join(' · ');
+  const cl = cfg[0]; const clTxt = (cl.cc||cl.account||cl.descricao) ? `<br>Classificação: CC <b>${cl.cc||'—'}</b> · Account <b>${cl.account||'—'}</b> · <b>${cl.descricao||'—'}</b>` : '';
   box.className='msg'; box.style.background='#f3f7f4'; box.style.color='var(--ink)';
-  box.innerHTML = `Rateio <b>${ag} · ${ativ}</b> → ${linhas}. Ao salvar, a mensalização será distribuída nessas categorias automaticamente.`;
+  box.innerHTML = `<b>Rateio ${ag}</b> → ${linhas}. Ao salvar, a mensalização é distribuída nessas categorias.${clTxt}`;
 }
 
 async function conectar(){
@@ -1251,15 +1271,20 @@ let DISPONIVEL_ORC = null;
 async function mostrarSaldoOrc(){
   const orcId = document.getElementById('pOrc').value;
   const hint = document.getElementById('orcHint');
+  const catHint = document.getElementById('catHint');
   DISPONIVEL_ORC = null;
-  if(!orcId){ if(hint) hint.textContent=''; atualizarTotalProjeto(); return; }
+  if(!orcId){ if(hint) hint.textContent=''; if(catHint) catHint.textContent=''; atualizarTotalProjeto(); return; }
   try{
     const { data } = await sb.rpc('orcamento_disponivel', { p_orcamento: orcId, p_excluir: EDIT_PROJ || null });
     DISPONIVEL_ORC = Number(data);
-    if(hint) hint.innerHTML = 'Disponível neste orçamento: <b class="num">'+BRL(DISPONIVEL_ORC)+'</b>';
-  }catch(_){ if(hint) hint.textContent=''; }
+    const cat = (document.getElementById('pCat')||{}).value || '';
+    const txt = 'Disponível na categoria'+(cat?(' '+dimDe(cat)):'')+': <b class="num">'+BRL(DISPONIVEL_ORC)+'</b>';
+    if(hint) hint.innerHTML = txt;
+    if(catHint) catHint.innerHTML = txt;
+  }catch(_){ if(hint) hint.textContent=''; if(catHint) catHint.textContent=''; }
   atualizarTotalProjeto();
 }
+function mostrarSaldoCategoria(){ /* saldo é atualizado por filtrarOrcamentosPorCategoria → mostrarSaldoOrc */ }
 function atualizarTotalProjeto(){
   let total = 0;
   document.querySelectorAll('#mesesBox input[id^="val_"]').forEach(el=>{ total += parseBRL(el); });
@@ -1280,12 +1305,14 @@ async function salvarProjetoRateio(nome, agencia, ativ){
     const mes=mesEl?mesEl.value:''; const val=valEl?parseBRL(valEl):0; if(mes&&val) rows.push({competencia:mes+'-01', teto:val});
   });
   if(!rows.length){ show('mktMsg','err','Adicione pelo menos um mês com valor na mensalização.'); return; }
-  const tipo=RATEIO_ATIVS[ativ];
-  const { data: cfg } = await sb.from('fee_rateio').select('categoria,percentual').eq('agencia',agencia).eq('tipo',tipo);
-  if(!cfg||!cfg.length){ show('mktMsg','err',`Rateio não configurado para ${agencia} · ${ativ}. Peça ao admin em Orçamentos → Rateio de Fee.`); return; }
+  const tipo=tipoRateioDaAtividade(ativ);
+  const { data: cfg } = await sb.from('fee_rateio').select('categoria,percentual,cc,account,descricao').eq('agencia',agencia).eq('tipo',tipo);
+  if(!cfg||!cfg.length){ show('mktMsg','err',`Rateio não configurado para ${agencia} · ${tipo==='KOL'?'KOL':'Fee Agência'}. Peça ao admin em Orçamentos → Rateio de Fee.`); return; }
   const arq=document.getElementById('pAprovArq').files[0];
   if(!EDIT_PROJ && !ehAdmin && !arq){ show('mktMsg','err','Anexe o documento da aprovação formal do projeto.'); return; }
-  const campos={ nome, agencia, activity:ativ, rateio:true, product_category:null, orcamento_id:null };
+  const cl=cfg[0]||{};
+  const campos={ nome, agencia, activity:ativ, rateio:true, product_category:null, orcamento_id:null,
+    cc: cl.cc||null, account: cl.account||null, account_desc: cl.descricao||null };
   if(!EDIT_PROJ && arq){
     const seguro=s=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9._-]/g,'_').replace(/_+/g,'_');
     const path='projetos/'+Date.now()+'_'+seguro(arq.name);
@@ -1317,9 +1344,11 @@ async function criarProjeto(){
   const ativ = document.getElementById('pAtiv').value;
   const projTag = document.getElementById('pProjTag').value;
   if(!nome || !agencia){ show('mktMsg','err','Preencha o nome e escolha a agência.'); return; }
-  if(ehAtividadeRateio(ativ)){ await salvarProjetoRateio(nome, agencia, ativ); return; }
-  if(!orcId){ show('mktMsg','err','Escolha o orçamento de origem.'); return; }
-  if(!cat || !ativ || !projTag){ show('mktMsg','err','Escolha categoria de produto, atividade e projeto.'); return; }
+  const rateioOn = document.getElementById('pRateio') && document.getElementById('pRateio').checked && ehAtividadeRateavel(ativ);
+  if(rateioOn){ await salvarProjetoRateio(nome, agencia, ativ); return; }
+  if(!cat){ show('mktMsg','err','Escolha a categoria de produto.'); return; }
+  if(!ativ || !projTag){ show('mktMsg','err','Escolha atividade e projeto (classificação).'); return; }
+  if(!orcId){ show('mktMsg','err','Não há orçamento cadastrado para a categoria '+dimDe(cat)+'. Peça ao admin para criar em Orçamentos.'); return; }
 
   const ehAdmin = (PAPEL === 'admin');
   const arq = document.getElementById('pAprovArq').files[0];
@@ -1385,10 +1414,9 @@ async function criarProjeto(){
 
 async function editarProjeto(id){
   const { data: proj, error } = await sb.from('projetos')
-    .select('nome,agencia,orcamento_id,product_category,activity,projeto_tag').eq('id', id).single();
+    .select('nome,agencia,orcamento_id,product_category,activity,projeto_tag,rateio').eq('id', id).single();
   if(error){ alert(error.message); return; }
   EDIT_PROJ = id;
-  const { data: tetos } = await sb.from('tetos').select('competencia,teto').eq('projeto_id', id).order('competencia');
   const card = document.getElementById('cardMkt');
   if(card){ card.style.display=''; card.classList.remove('collapsed'); }
   carregarAgencias(); preencherListas(); await carregarOrcamentos();
@@ -1399,17 +1427,30 @@ async function editarProjeto(id){
   document.getElementById('pCat').value = proj.product_category || '';
   document.getElementById('pAtiv').value = proj.activity || '';
   document.getElementById('pProjTag').value = proj.projeto_tag || '';
+  // flag de rateio
+  const rchk=document.getElementById('pRateio'); if(rchk) rchk.checked = !!proj.rateio;
+  await aoMudarAtividade();
   previewClassificacao();
+  // meses: projeto normal usa tetos; projeto de rateio reconstrói pela soma das alocações do mês
+  let meses=[];
+  if(proj.rateio){
+    const { data: al } = await sb.from('rateio_alocacao').select('competencia,valor').eq('projeto_id', id);
+    const porMes={}; (al||[]).forEach(a=>{ const m=String(a.competencia).slice(0,7); porMes[m]=(porMes[m]||0)+(Number(a.valor)||0); });
+    meses = Object.keys(porMes).sort().map(m=>({competencia:m, teto:porMes[m]}));
+  } else {
+    const { data: tetos } = await sb.from('tetos').select('competencia,teto').eq('projeto_id', id).order('competencia');
+    meses = (tetos||[]).map(t=>({competencia:String(t.competencia).slice(0,7), teto:Number(t.teto)}));
+  }
   const box = document.getElementById('mesesBox'); box.innerHTML='';
-  (tetos||[]).forEach(t=>{
+  meses.forEach(t=>{
     addMesRow();
     const div = box.lastElementChild;
     const mesEl = div.querySelector('input[type="month"]');
     const valEl = div.querySelector('input[id^="val_"]');
-    if(mesEl) mesEl.value = String(t.competencia).slice(0,7);
+    if(mesEl) mesEl.value = t.competencia;
     if(valEl) valEl.value = BRL(Number(t.teto));
   });
-  if(!(tetos||[]).length) addMesRow();
+  if(!meses.length) addMesRow();
   mostrarSaldoOrc();
   document.getElementById('cardMktTxt').textContent = 'Editar projeto';
   document.getElementById('btnProj').textContent = 'Salvar alterações';
@@ -1421,6 +1462,11 @@ function cancelarEdicao(){
   DISPONIVEL_ORC = null;
   document.getElementById('pNome').value='';
   ['pAgencia','pCat','pAtiv','pProjTag','pOrc'].forEach(id=>{ const e=document.getElementById(id); if(e) e.value=''; });
+  const rchk=document.getElementById('pRateio'); if(rchk) rchk.checked=false;
+  const tbox=document.getElementById('rateioToggleBox'); if(tbox) tbox.style.display='none';
+  const rhint=document.getElementById('rateioHint'); if(rhint){ rhint.style.display='none'; rhint.innerHTML=''; }
+  const cf=document.getElementById('pCatField'); if(cf) cf.style.display='';
+  const ch=document.getElementById('catHint'); if(ch) ch.textContent='';
   const oh=document.getElementById('orcHint'); if(oh) oh.textContent='';
   const ap=document.getElementById('pAprovArq'); if(ap) ap.value='';
   document.getElementById('previewClass').innerHTML='';
@@ -1483,9 +1529,16 @@ async function mostrarAprovador(){
   try{
     const { data: ap } = await sb.rpc('aprovador_do_projeto', { p_projeto: proj });
     const a = ap && ap[0];
+    let txt='';
     if(a){ const nome=[a.nome,a.sobrenome].filter(Boolean).join(' ');
-      hint.innerHTML = 'Aprovação será enviada para <b>'+(nome||a.email)+'</b>'+(nome?' ('+a.email+')':'')+'.'; }
-    else { hint.textContent = 'Este projeto ainda não tem responsável definido.'; }
+      txt = 'Aprovação será enviada para <b>'+(nome||a.email)+'</b>'+(nome?' ('+a.email+')':'')+'.'; }
+    else { txt = 'Este projeto ainda não tem responsável definido.'; }
+    // se for projeto de Fee de rateio, informa a classificação contábil
+    const { data: pj } = await sb.from('projetos').select('rateio,cc,account,account_desc').eq('id',proj).single();
+    if(pj && pj.rateio){
+      txt += `<div class="msg" style="margin-top:8px;background:#f3f7f4;color:var(--ink)"><b>Fee de rateio.</b> Informe na nota: CC <b>${pj.cc||'—'}</b> · Account <b>${pj.account||'—'}</b> · <b>${pj.account_desc||'—'}</b></div>`;
+    }
+    hint.innerHTML = txt;
   }catch(_){ hint.textContent=''; }
 }
 
@@ -2311,7 +2364,7 @@ function abrirRateioConfig(){
 }
 async function carregarRateioConfigForm(){
   const ag=document.getElementById('rcAg').value, tipo=document.getElementById('rcTipo').value;
-  const { data: cfg } = await sb.from('fee_rateio').select('categoria,percentual').eq('agencia',ag).eq('tipo',tipo);
+  const { data: cfg } = await sb.from('fee_rateio').select('categoria,percentual,cc,account,descricao').eq('agencia',ag).eq('tipo',tipo);
   const atual={}; (cfg||[]).forEach(c=>{ atual[dimDe(c.categoria)]=Number(c.percentual)*100; });
   document.getElementById('rcLinhas').innerHTML = DIMENSOES.map(d=>`
     <div class="row" style="align-items:center;margin-bottom:4px">
@@ -2319,6 +2372,10 @@ async function carregarRateioConfigForm(){
       <div class="field" style="margin:0"><input type="number" step="0.01" min="0" max="100" id="rc_${d}" value="${atual[d]!=null?atual[d]:''}" placeholder="0" oninput="somaRateio()" style="text-align:right"> </div>
       <div style="flex:0 0 20px;color:var(--muted)">%</div>
     </div>`).join('');
+  const cl=(cfg&&cfg[0])||{};
+  document.getElementById('rcCC').value = cl.cc||'';
+  document.getElementById('rcAccount').value = cl.account||'';
+  document.getElementById('rcDesc').value = cl.descricao||'';
   somaRateio(); show('rcMsg','','');
 }
 function somaRateio(){
@@ -2328,7 +2385,8 @@ function somaRateio(){
 }
 async function salvarRateioConfig(){
   const ag=document.getElementById('rcAg').value, tipo=document.getElementById('rcTipo').value;
-  const linhas=[]; DIMENSOES.forEach(d=>{ const el=document.getElementById('rc_'+d); const v=el&&el.value?Number(el.value):0; if(v>0) linhas.push({agencia:ag,tipo,categoria:d,percentual:v/100}); });
+  const cc=document.getElementById('rcCC').value.trim()||null, account=document.getElementById('rcAccount').value.trim()||null, desc=document.getElementById('rcDesc').value.trim()||null;
+  const linhas=[]; DIMENSOES.forEach(d=>{ const el=document.getElementById('rc_'+d); const v=el&&el.value?Number(el.value):0; if(v>0) linhas.push({agencia:ag,tipo,categoria:d,percentual:v/100,cc,account,descricao:desc}); });
   const del=await sb.from('fee_rateio').delete().eq('agencia',ag).eq('tipo',tipo);
   if(del.error){ show('rcMsg','err','Erro ao limpar config antiga (rodou o SQL de fee_rateio?): '+del.error.message); return; }
   if(linhas.length){ const ins=await sb.from('fee_rateio').insert(linhas); if(ins.error){ show('rcMsg','err',ins.error.message); return; } }
