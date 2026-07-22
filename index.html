@@ -250,6 +250,7 @@
       <button class="tabbtn" data-tab="projetos"   onclick="abrirAba('projetos')">Projetos</button>
       <button class="tabbtn" data-tab="pos"         onclick="abrirAba('pos')">POs</button>
       <button class="tabbtn" data-tab="aprovacoes" onclick="abrirAba('aprovacoes')">Aprovações<span class="tbdot"></span></button>
+      <button class="tabbtn" data-tab="saldos"     onclick="abrirAba('saldos')">Saldos</button>
     </nav>
 
     <!-- ===== Painel: OVERVIEW ===== -->
@@ -324,6 +325,18 @@
     <section class="panel" id="panel-aprovacoes">
       <div id="aprovVazio" class="card" style="display:none"><div class="empty">Nenhuma aprovação pendente para o seu perfil no momento.</div></div>
       <!-- cards de aprovação (cardAprovarProj, cardAprovar, cardGerar, cardValidar, cardPessoas) movidos para cá por JS -->
+    </section>
+
+    <!-- ===== Painel: SALDOS (decisão de redistribuição) — ADITIVO ===== -->
+    <section class="panel" id="panel-saldos">
+      <div class="card" id="cardDecisaoSaldo">
+        <h2><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Decisão de saldo</h2>
+        <div class="sub" style="margin:-6px 0 12px">Suas campanhas com saldo elegível no mês escolhido. Registre a decisão de como redistribuir o saldo para os próximos meses do ano fiscal.</div>
+        <div class="row">
+          <div class="field"><label>Mês de origem</label><input id="sdMes" type="month" onchange="carregarSaldosDecisao()"></div>
+        </div>
+        <div id="sdLista"><div class="empty">Carregando…</div></div>
+      </div>
     </section>
 
     <div class="card" id="cardUser" style="padding:14px 16px">
@@ -885,6 +898,7 @@ async function abrirApp(session){
 
   assinarMudancas();
   abrirAba(abaInicial(papel));
+  if(location.hash==='#saldos' && TABS_VISIVEIS.includes('saldos')) abrirAba('saldos');
 }
 
 // Define quais blocos aparecem, em que ordem, e quais começam colapsados.
@@ -2087,9 +2101,9 @@ const DIMENSOES = ['TV','AC','MOB','REF','WM','LABG'];
 function dimDe(cat){ if(!cat) return ''; return CAT_DIM[cat] || (DIMENSOES.includes(cat)?cat:'Outros'); }
 
 const ABAS_POR_PAPEL = {
-  admin:      ['overview','orcamentos','projetos','pos','aprovacoes'],
+  admin:      ['overview','orcamentos','projetos','pos','aprovacoes','saldos'],
   financeiro: ['overview','orcamentos','projetos','pos','aprovacoes'],
-  marketing:  ['overview','orcamentos','projetos','pos','aprovacoes'],
+  marketing:  ['overview','orcamentos','projetos','pos','aprovacoes','saldos'],
   agencia:    ['projetos','pos']
 };
 let TABS_VISIVEIS = [];
@@ -2150,7 +2164,99 @@ function abrirAba(nome){
   if(nome==='projetos'){  carregarProjResumo(); carregar(); }
   if(nome==='pos')        carregarPOsUnificada();
   if(nome==='aprovacoes') atualizarBadgeAprov();
+  if(nome==='saldos')     carregarSaldosDecisao();
 }
+// ================= Saldos: decisão de redistribuição (ADITIVO) =================
+// Lê saldos_para_decisao() e grava via registrar_decisao_saldo(); só escreve na tabela nova.
+function _sdMesAtual(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+function _sdModo(pid){ const el=document.querySelector('input[name="sdModo-'+pid+'"]:checked'); return el?el.value:''; }
+function sdMask(el){ const d=el.value.replace(/\D/g,''); el.value = d ? (Number(d)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}) : ''; }
+
+async function carregarSaldosDecisao(){
+  const box=document.getElementById('sdLista'); if(!box) return;
+  const mesEl=document.getElementById('sdMes');
+  if(mesEl && !mesEl.value) mesEl.value=_sdMesAtual();
+  const mes=(mesEl&&mesEl.value)||_sdMesAtual();
+  box.innerHTML='<div class="empty">Carregando…</div>';
+  const { data, error } = await sb.rpc('saldos_para_decisao', { p_mes: mes+'-01' });
+  if(error){ box.innerHTML='<div class="empty">Erro: '+error.message+'</div>'; return; }
+  const rows=data||[];
+  if(!rows.length){ box.innerHTML='<div class="empty">Nenhuma campanha com saldo elegível neste mês.</div>'; return; }
+  box.innerHTML=rows.map(renderDecisaoCard).join('');
+  rows.forEach(r=>{
+    if(r.decisao_modo==='manual' && r.decisao_alocacoes){
+      Object.entries(r.decisao_alocacoes).forEach(([m,v])=>{
+        const inp=document.querySelector('[data-sd-manual="'+r.projeto_id+'"][data-mes="'+m+'"]');
+        if(inp) inp.value=BRL(v);
+      });
+    }
+    sdSync(r.projeto_id);
+  });
+}
+function renderDecisaoCard(r){
+  const pid=r.projeto_id, saldo=Number(r.saldo_elegivel||0), alvos=r.meses_alvo||[];
+  const temAlvo=alvos.length>0, splitOn=!!r.split_disponivel && temAlvo, dec=r.decisao_modo||'';
+  const badge=dec?'<span class="pill" style="background:#eaf7ef;color:#1f8a4c">decidido: '+dec+(r.decidido_em?' · '+new Date(r.decidido_em).toLocaleDateString('pt-BR'):'')+'</span>':'';
+  const head='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">'
+    +'<div><b>'+r.projeto+'</b>'+(r.agencia?' <span class="sub">· '+r.agencia+'</span>':'')
+    +'<div class="sub" style="font-size:12px">Comprometido '+BRL(r.comprometido)+' · Pendente '+BRL(r.pendente)+' · Teto '+BRL(r.estimativa_base)+'</div></div>'
+    +'<div style="text-align:right"><div class="sub" style="font-size:11px;text-transform:uppercase;letter-spacing:.06em">Saldo elegível</div>'
+    +'<div style="font-weight:800;font-size:18px">'+BRL(saldo)+'</div>'+badge+'</div></div>';
+  if(!temAlvo){
+    return '<div class="card" style="margin:10px 0;border:1px solid var(--line)">'+head
+      +'<div class="sub" style="color:var(--amber);margin-top:8px">Mês de origem sem mês posterior no ano fiscal: não há para onde redistribuir.</div></div>';
+  }
+  const radio=(m,attr,lbl)=>'<label style="display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer"><input type="radio" name="sdModo-'+pid+'" value="'+m+'" '+attr+' onchange="sdSync(\''+pid+'\')"> '+lbl+'</label>';
+  const radios='<div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:12px">'
+    +radio('total',(dec==='total'?'checked':''),'Total <span class="sub">(tudo em '+fmtMesLabel(alvos[0])+')</span>')
+    +radio('split',((splitOn?'':'disabled')+(dec==='split'?' checked':'')),'Split <span class="sub">(÷ '+alvos.length+' meses)</span>')
+    +radio('manual',(dec==='manual'?'checked':''),'Manual')
+    +'</div>';
+  const manualInputs=alvos.map(a=>'<div class="field" style="margin:0"><label style="font-size:11px">'+fmtMesLabel(a)+'</label>'
+    +'<input type="text" inputmode="decimal" data-sd-manual="'+pid+'" data-mes="'+a+'" oninput="sdMask(this);sdSoma(\''+pid+'\')" placeholder="R$ 0,00" style="max-width:120px"></div>').join('');
+  return '<div class="card" style="margin:10px 0;border:1px solid var(--line)" id="sdCard-'+pid+'" data-saldo="'+saldo+'">'
+    +head+radios
+    +'<div id="sdPrev-'+pid+'" class="sub" style="margin-top:8px"></div>'
+    +'<div id="sdManual-'+pid+'" style="display:none;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-top:8px">'+manualInputs
+    +'<div class="field" style="margin:0"><label style="font-size:11px">Soma</label><div id="sdSoma-'+pid+'" style="font-weight:700;padding:6px 0">R$ 0,00</div></div></div>'
+    +'<div style="margin-top:12px;display:flex;gap:10px;align-items:center">'
+    +'<button class="sm" id="sdBtn-'+pid+'" onclick="salvarDecisaoSaldo(\''+pid+'\',\''+r.mes_origem+'\')" disabled>Confirmar decisão</button>'
+    +'<span id="sdMsg-'+pid+'" class="sub"></span></div></div>';
+}
+function sdSync(pid){
+  const modo=_sdModo(pid);
+  const manual=document.getElementById('sdManual-'+pid);
+  const prev=document.getElementById('sdPrev-'+pid);
+  const btn=document.getElementById('sdBtn-'+pid);
+  if(manual) manual.style.display = modo==='manual'?'flex':'none';
+  if(modo==='manual'){ sdSoma(pid); return; }
+  if(prev) prev.textContent = modo==='total' ? 'O saldo inteiro será alocado no mês seguinte.' : (modo==='split' ? 'O saldo será dividido igualmente pelos meses restantes do ano fiscal.' : '');
+  if(btn) btn.disabled = !modo;
+}
+function sdSoma(pid){
+  const card=document.getElementById('sdCard-'+pid); if(!card) return;
+  const alvo=Number(card.dataset.saldo||0);
+  let soma=0; document.querySelectorAll('[data-sd-manual="'+pid+'"]').forEach(i=>{ soma+=parseBRL(i)||0; });
+  const el=document.getElementById('sdSoma-'+pid); const ok=Math.abs(soma-alvo)<0.01;
+  if(el){ el.textContent=BRL(soma); el.style.color = ok?'var(--green)':'var(--red)'; }
+  const btn=document.getElementById('sdBtn-'+pid); if(btn) btn.disabled = !ok;
+}
+async function salvarDecisaoSaldo(pid, mesOrigem){
+  const modo=_sdModo(pid);
+  const msg=document.getElementById('sdMsg-'+pid);
+  const btn=document.getElementById('sdBtn-'+pid);
+  if(!modo){ if(msg) msg.textContent='Escolha um modo.'; return; }
+  let aloc={};
+  if(modo==='manual'){
+    document.querySelectorAll('[data-sd-manual="'+pid+'"]').forEach(i=>{ const v=parseBRL(i)||0; if(v>0) aloc[i.dataset.mes]=Number(v.toFixed(2)); });
+  }
+  if(btn) btn.disabled=true; if(msg){ msg.style.color=''; msg.textContent='Salvando…'; }
+  const { error } = await sb.rpc('registrar_decisao_saldo', { p_projeto:pid, p_mes:mesOrigem, p_modo:modo, p_alocacoes:aloc });
+  if(error){ if(msg){ msg.style.color='var(--red)'; msg.textContent='Erro: '+error.message; } if(btn) btn.disabled=false; return; }
+  if(msg){ msg.style.color='var(--green)'; msg.textContent='Decisão registrada ✓'; }
+  setTimeout(carregarSaldosDecisao, 800);
+}
+// ============================================================================
 function focarNovoProjeto(){ abrirAba('projetos'); const c=document.getElementById('cardMkt'); if(c){ c.style.display=''; c.scrollIntoView({behavior:'smooth',block:'start'}); const n=document.getElementById('pNome'); if(n) setTimeout(()=>n.focus(),300); } }
 function focarNovoOrcamento(){ abrirAba('orcamentos'); const c=document.getElementById('cardOrc'); if(c){ c.scrollIntoView({behavior:'smooth',block:'start'}); const s=document.getElementById('oCat'); if(s) setTimeout(()=>s.focus(),300); } }
 
